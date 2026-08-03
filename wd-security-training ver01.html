@@ -1,0 +1,1713 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<title>WD Security Training Portal</title>
+<link href="https://fonts.googleapis.com/css2?family=Sarabun:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+
+<!-- Firebase v10 Compat SDK -->
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore-compat.js"></script>
+
+<style>
+*{margin:0;padding:0;box-sizing:border-box;}
+body{font-family:'Sarabun',sans-serif;background:#f0f4f8;color:#1a1a2e;min-height:100vh;}
+.page{display:none;}.page.active{display:flex;min-height:100vh;}
+
+/* LOADING OVERLAY */
+#loading-overlay{position:fixed;inset:0;background:linear-gradient(135deg,#001a4d,#003380);display:flex;flex-direction:column;align-items:center;justify-content:center;z-index:9999;}
+#loading-overlay .ld-logo{width:72px;height:72px;background:#fff;border-radius:16px;display:flex;align-items:center;justify-content:center;font-size:28px;font-weight:900;color:#0066cc;margin-bottom:20px;}
+#loading-overlay p{color:rgba(255,255,255,.75);font-size:15px;margin-top:12px;}
+.ld-spinner{width:40px;height:40px;border:4px solid rgba(255,255,255,.2);border-top-color:#fff;border-radius:50%;animation:spin .8s linear infinite;}
+@keyframes spin{to{transform:rotate(360deg);}}
+
+/* LOGIN */
+.login-bg{background:linear-gradient(135deg,#001a4d,#003380,#0055cc);width:100%;display:flex;align-items:center;justify-content:center;padding:20px;}
+.login-card{background:#fff;border-radius:20px;padding:40px 36px;width:420px;max-width:100%;box-shadow:0 24px 64px rgba(0,0,0,.35);}
+.login-logo{text-align:center;margin-bottom:24px;}
+.wd-badge{display:inline-flex;align-items:center;background:linear-gradient(135deg,#0066cc,#003380);border-radius:12px;padding:12px 22px;}
+.wd-badge span{color:#fff;font-size:22px;font-weight:800;letter-spacing:2px;}
+.login-logo h2{margin-top:14px;font-size:18px;font-weight:700;color:#001a4d;}
+.login-logo p{font-size:13px;color:#666;margin-top:4px;}
+.form-group{margin-bottom:16px;}
+.form-group label{display:block;font-size:13px;font-weight:600;color:#334;margin-bottom:6px;}
+.form-group input{width:100%;padding:11px 14px;border:1.5px solid #dde;border-radius:9px;font-family:'Sarabun',sans-serif;font-size:15px;transition:border-color .2s;}
+.form-group input:focus{outline:none;border-color:#0066cc;box-shadow:0 0 0 3px rgba(0,102,204,.12);}
+.btn-login{width:100%;padding:13px;background:linear-gradient(135deg,#0066cc,#003380);color:#fff;border:none;border-radius:10px;font-family:'Sarabun',sans-serif;font-size:16px;font-weight:700;cursor:pointer;transition:opacity .2s;}
+.btn-login:hover{opacity:.88;}
+.btn-login:disabled{opacity:.55;cursor:not-allowed;}
+.login-error{background:#fff0f0;border:1px solid #ffaaaa;color:#c00;border-radius:8px;padding:10px 14px;font-size:13px;margin-bottom:14px;display:none;}
+.login-status{background:#e3f0ff;border:1px solid #99ccff;color:#004499;border-radius:8px;padding:10px 14px;font-size:13px;margin-bottom:14px;display:none;}
+
+/* HAMBURGER */
+.hamburger{display:none;position:fixed;top:14px;left:14px;z-index:300;background:#003380;color:#fff;border:none;border-radius:8px;padding:9px 12px;font-size:18px;cursor:pointer;box-shadow:0 2px 8px rgba(0,0,0,.3);}
+.sidebar-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:199;}
+
+/* APP SHELL */
+.app-shell{display:flex;width:100%;min-height:100vh;}
+.sidebar{width:248px;background:linear-gradient(180deg,#001a4d,#003380);display:flex;flex-direction:column;flex-shrink:0;position:fixed;top:0;left:0;height:100vh;overflow-y:auto;z-index:200;transition:transform .3s;}
+.sidebar-header{padding:20px 18px 14px;border-bottom:1px solid rgba(255,255,255,.1);}
+.brand{display:flex;align-items:center;gap:10px;}
+.logo-box{width:38px;height:38px;background:linear-gradient(135deg,#0066cc,#00aaff);border-radius:9px;display:flex;align-items:center;justify-content:center;font-weight:800;font-size:14px;color:#fff;flex-shrink:0;}
+.brand-text{color:#fff;font-size:13px;font-weight:700;line-height:1.3;}
+.brand-sub{color:rgba(255,255,255,.55);font-size:11px;}
+.sidebar-nav{flex:1;padding:12px 0;}
+.nav-section{padding:8px 14px 4px;font-size:10.5px;font-weight:700;color:rgba(255,255,255,.38);letter-spacing:1px;text-transform:uppercase;}
+.nav-item{display:flex;align-items:center;gap:9px;padding:9px 16px;color:rgba(255,255,255,.75);font-size:13.5px;cursor:pointer;transition:all .18s;border-left:3px solid transparent;margin:1px 0;}
+.nav-item:hover{background:rgba(255,255,255,.08);color:#fff;}
+.nav-item.active{background:rgba(0,102,204,.35);color:#fff;border-left-color:#4db8ff;}
+.nav-icon{font-size:15px;width:20px;text-align:center;}
+.sidebar-footer{padding:14px 16px;border-top:1px solid rgba(255,255,255,.1);}
+.sidebar-user{display:flex;align-items:center;gap:9px;margin-bottom:10px;}
+.user-avatar{width:34px;height:34px;border-radius:50%;background:linear-gradient(135deg,#0066cc,#00aaff);display:flex;align-items:center;justify-content:center;color:#fff;font-weight:700;font-size:13px;flex-shrink:0;}
+.user-name{color:#fff;font-size:13px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.user-role{color:rgba(255,255,255,.5);font-size:11px;}
+.sb-btn{width:100%;padding:9px 12px;border-radius:8px;font-family:'Sarabun',sans-serif;font-size:13px;font-weight:600;cursor:pointer;margin-bottom:7px;border:1px solid;text-align:left;transition:background .18s;}
+.sb-gray{background:rgba(255,255,255,.1);color:#fff;border-color:rgba(255,255,255,.2);}
+.sb-gray:hover{background:rgba(255,255,255,.18);}
+.sb-blue{background:rgba(0,102,204,.22);color:#99ccff;border-color:rgba(0,120,255,.45);}
+.sb-blue:hover{background:rgba(0,102,204,.35);}
+.sb-green{background:rgba(0,160,80,.18);color:#66dd99;border-color:rgba(0,180,80,.4);}
+.sb-green:hover{background:rgba(0,160,80,.30);}
+.sb-red{background:rgba(220,53,69,.2);color:#ff8a8a;border-color:rgba(220,53,69,.3);margin-bottom:0;}
+.sb-red:hover{background:rgba(220,53,69,.35);}
+.main-content{margin-left:248px;flex:1;padding:24px;min-height:100vh;}
+
+/* ONLINE STATUS BADGE */
+.online-dot{display:inline-block;width:8px;height:8px;border-radius:50%;background:#00cc66;margin-right:5px;animation:pulse 2s infinite;}
+@keyframes pulse{0%,100%{opacity:1;}50%{opacity:.4;}}
+.realtime-badge{display:inline-flex;align-items:center;background:rgba(0,200,100,.15);border:1px solid rgba(0,200,100,.3);color:#00cc66;font-size:11px;font-weight:700;padding:3px 9px;border-radius:10px;margin-left:10px;letter-spacing:.5px;}
+
+/* CARDS & LAYOUT */
+.page-header{margin-bottom:22px;}
+.page-header h1{font-size:22px;font-weight:800;color:#001a4d;}
+.page-header p{font-size:14px;color:#667;margin-top:3px;}
+.breadcrumb{font-size:12px;color:#888;margin-bottom:6px;}
+.card{background:#fff;border-radius:14px;padding:22px;box-shadow:0 2px 12px rgba(0,0,0,.07);border:1px solid #e8edf5;margin-bottom:18px;}
+.card-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;}
+.card-title{font-size:16px;font-weight:700;color:#001a4d;}
+.stats-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:16px;margin-bottom:22px;}
+.stat-card{background:#fff;border-radius:14px;padding:20px;box-shadow:0 2px 12px rgba(0,0,0,.07);border:1px solid #e8edf5;display:flex;align-items:center;gap:14px;}
+.stat-icon{width:52px;height:52px;border-radius:12px;display:flex;align-items:center;justify-content:center;font-size:22px;flex-shrink:0;}
+.si-blue{background:linear-gradient(135deg,#e3f0ff,#b3d4ff);}
+.si-green{background:linear-gradient(135deg,#e3fff0,#b3ffd4);}
+.si-orange{background:linear-gradient(135deg,#fff3e0,#ffd699);}
+.si-purple{background:linear-gradient(135deg,#f3e5ff,#d9b3ff);}
+.stat-val{font-size:28px;font-weight:800;color:#001a4d;line-height:1;}
+.stat-lbl{font-size:13px;color:#667;margin-top:3px;}
+
+/* TABLE */
+.table-wrap{overflow-x:auto;}
+table{width:100%;border-collapse:collapse;}
+th{background:#f5f7fa;padding:11px 14px;text-align:left;font-size:13px;font-weight:700;color:#445;border-bottom:2px solid #e0e6f0;}
+td{padding:11px 14px;font-size:14px;color:#334;border-bottom:1px solid #f0f4f8;vertical-align:middle;}
+tr:hover td{background:#fafbff;}
+.badge{display:inline-block;padding:3px 10px;border-radius:20px;font-size:12px;font-weight:600;}
+.bg{background:#e3fff0;color:#1a7a40;}.bb{background:#e3f0ff;color:#0055aa;}.bo{background:#fff3e0;color:#cc6600;}.br{background:#ffe3e3;color:#cc0000;}.bgr{background:#f0f0f0;color:#666;}
+.badge-disabled{background:#fee;color:#c00;border:1px solid #fcc;}
+.badge-enabled{background:#e3fff0;color:#1a7a40;border:1px solid #99ddaa;}
+
+/* BUTTONS */
+.btn{display:inline-flex;align-items:center;gap:6px;padding:8px 16px;border-radius:8px;font-family:'Sarabun',sans-serif;font-size:13px;font-weight:600;cursor:pointer;border:none;transition:all .18s;}
+.btn-p{background:linear-gradient(135deg,#0066cc,#003380);color:#fff;}
+.btn-p:hover{opacity:.88;}
+.btn-s{background:linear-gradient(135deg,#1a7a40,#0a5a28);color:#fff;}
+.btn-s:hover{opacity:.88;}
+.btn-d{background:#cc0000;color:#fff;}
+.btn-o{background:#fff;color:#0066cc;border:1.5px solid #0066cc;}
+.btn-o:hover{background:#e3f0ff;}
+.btn-sm{padding:5px 11px;font-size:12px;}
+.btn:disabled{opacity:.45;cursor:not-allowed;}
+.btn-toggle-on{background:#e3fff0;color:#1a7a40;border:1.5px solid #1a7a40;}
+.btn-toggle-off{background:#ffe3e3;color:#cc0000;border:1.5px solid #cc0000;}
+
+/* PROGRESS */
+.prog-bar{height:8px;background:#e8edf5;border-radius:4px;overflow:hidden;}
+.prog-fill{height:100%;border-radius:4px;background:linear-gradient(90deg,#0066cc,#00aaff);}
+.prog-fill.grn{background:linear-gradient(90deg,#1a7a40,#00cc66);}
+
+/* MODALS */
+.modal-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:1000;align-items:center;justify-content:center;padding:16px;}
+.modal-overlay.open{display:flex;}
+.modal{background:#fff;border-radius:16px;padding:28px 30px;width:560px;max-width:100%;max-height:90vh;overflow-y:auto;box-shadow:0 16px 48px rgba(0,0,0,.25);}
+.modal-lg{width:820px;}.modal-xl{width:1020px;}
+.modal h3{font-size:18px;font-weight:800;color:#001a4d;margin-bottom:18px;}
+.modal-footer{display:flex;gap:10px;justify-content:flex-end;margin-top:20px;}
+
+/* FORM FIELDS */
+.form-row{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:14px;}
+.form-field{margin-bottom:14px;}
+.form-field label{display:block;font-size:13px;font-weight:600;color:#445;margin-bottom:5px;}
+.form-field input,.form-field select,.form-field textarea{width:100%;padding:10px 13px;border:1.5px solid #dde;border-radius:8px;font-family:'Sarabun',sans-serif;font-size:14px;}
+.form-field input:focus,.form-field select:focus,.form-field textarea:focus{outline:none;border-color:#0066cc;box-shadow:0 0 0 3px rgba(0,102,204,.1);}
+.pw-strength{margin-top:6px;height:6px;border-radius:3px;}
+.pw-strength.weak{background:#cc0000;width:33%;}
+.pw-strength.medium{background:#e08800;width:66%;}
+.pw-strength.strong{background:#1a7a40;width:100%;}
+.pw-sl{font-size:12px;margin-top:4px;font-weight:600;}
+.pw-sl.weak{color:#cc0000;}.pw-sl.medium{color:#e08800;}.pw-sl.strong{color:#1a7a40;}
+
+/* QUIZ */
+.quiz-container{max-width:700px;margin:0 auto;}
+.quiz-hdr{background:linear-gradient(135deg,#001a4d,#003380);color:#fff;border-radius:14px;padding:20px 24px;margin-bottom:20px;}
+.quiz-qn{font-size:13px;opacity:.75;margin-bottom:6px;}
+.quiz-timer{font-size:28px;font-weight:800;color:#4db8ff;text-align:center;margin-bottom:6px;}
+.quiz-timer.warn{color:#ff8844;}.quiz-timer.danger{color:#ff4444;}
+.quiz-options{display:flex;flex-direction:column;gap:10px;}
+.quiz-opt{padding:13px 18px;background:#fff;border:2px solid #e0e6f0;border-radius:10px;cursor:pointer;font-size:15px;font-family:'Sarabun',sans-serif;text-align:left;transition:all .18s;}
+.quiz-opt:hover{border-color:#0066cc;background:#f0f6ff;}
+.quiz-opt.correct{border-color:#1a7a40;background:#e3fff0;color:#1a7a40;}
+.quiz-opt.wrong{border-color:#cc0000;background:#ffe3e3;color:#cc0000;}
+.quiz-opt.disabled{cursor:default;}
+.quiz-pips{display:flex;gap:6px;margin-bottom:18px;flex-wrap:wrap;}
+.qpip{width:28px;height:8px;border-radius:4px;background:#e0e6f0;}
+.qpip.ok{background:#1a7a40;}.qpip.fail{background:#cc0000;}.qpip.cur{background:#0066cc;}
+
+/* WI CARDS */
+.wi-card{background:#fff;border-radius:14px;border:1px solid #e0e6f0;overflow:hidden;cursor:pointer;transition:all .2s;margin-bottom:12px;}
+.wi-card:hover{box-shadow:0 6px 20px rgba(0,102,204,.15);border-color:#0066cc;}
+.wi-card-header{display:flex;align-items:center;gap:14px;padding:16px 20px;}
+.wi-num{width:40px;height:40px;border-radius:10px;background:linear-gradient(135deg,#0066cc,#003380);color:#fff;font-weight:800;font-size:14px;display:flex;align-items:center;justify-content:center;flex-shrink:0;}
+.wi-title{font-size:15px;font-weight:700;color:#001a4d;}
+.wi-sub{font-size:12px;color:#667;margin-top:2px;}
+.wi-bar{height:4px;background:#e0e6f0;}
+.wi-fill{height:100%;background:linear-gradient(90deg,#0066cc,#00aaff);}
+
+/* SCORE */
+.score-row{display:flex;align-items:center;gap:12px;padding:12px 16px;background:#f8faff;border-radius:10px;margin-bottom:8px;border:1px solid #e8edf5;}
+.score-num{font-size:22px;font-weight:800;color:#0066cc;width:60px;text-align:center;}
+.score-num.pass{color:#1a7a40;}.score-num.fail{color:#cc0000;}
+.score-info{flex:1;}
+.score-title{font-size:14px;font-weight:600;color:#334;}
+.score-date{font-size:12px;color:#888;margin-top:2px;}
+
+/* NOTIFICATIONS */
+.notif-item{display:flex;align-items:flex-start;gap:12px;padding:12px;background:#f8faff;border-radius:10px;margin-bottom:8px;border:1px solid #e8edf5;cursor:pointer;}
+.notif-item.unread{background:#fffbe6;border-color:#ffd666;}
+.notif-icon{font-size:20px;width:32px;text-align:center;flex-shrink:0;}
+.notif-title{font-size:13px;font-weight:700;color:#334;}
+.notif-msg{font-size:12px;color:#667;margin-top:2px;}
+.notif-time{font-size:11px;color:#aaa;margin-top:3px;}
+.notif-dot{width:8px;height:8px;border-radius:50%;background:#cc0000;display:inline-block;margin-right:6px;}
+
+/* COMPANY BANNER */
+.company-banner{background:linear-gradient(135deg,#001a4d,#0055cc);border-radius:14px;padding:28px;color:#fff;margin-bottom:20px;display:flex;align-items:center;gap:24px;}
+.co-logo-box{width:80px;height:80px;background:#fff;border-radius:14px;display:flex;align-items:center;justify-content:center;flex-shrink:0;}
+.co-logo-box .wd-text{font-size:28px;font-weight:900;color:#0066cc;}
+
+/* REGULATIONS */
+.reg-card{background:#fff;border:1.5px solid #e0e6f0;border-radius:12px;margin-bottom:12px;overflow:hidden;}
+.reg-card-head{display:flex;align-items:center;gap:12px;padding:14px 16px;cursor:pointer;user-select:none;}
+.reg-card-head:hover{background:#f5f8ff;}
+.reg-num-badge{width:36px;height:36px;border-radius:9px;background:linear-gradient(135deg,#0066cc,#003380);color:#fff;font-weight:800;font-size:13px;display:flex;align-items:center;justify-content:center;flex-shrink:0;}
+.reg-title{flex:1;font-size:15px;font-weight:700;color:#001a4d;}
+.reg-sub{font-size:12px;color:#667;margin-top:2px;}
+.reg-actions{display:flex;gap:6px;align-items:center;}
+.reg-chevron{font-size:12px;color:#667;transition:transform .2s;}
+.reg-chevron.open{transform:rotate(180deg);}
+.reg-body{display:none;padding:16px 18px;border-top:1px solid #e8edf5;background:#fafbff;}
+.reg-body.open{display:block;}
+.reg-count-bar{display:flex;align-items:center;gap:10px;margin-bottom:16px;padding:12px 16px;background:#e3f0ff;border-radius:10px;border:1px solid #b3d4ff;}
+.reg-count-num{font-size:24px;font-weight:900;color:#0066cc;}
+.reg-count-label{font-size:13px;color:#0055aa;}
+.reg-limit{font-size:12px;color:#667;margin-left:auto;}
+.content-editor{width:100%;min-height:120px;padding:12px;border:1.5px solid #dde;border-radius:9px;font-family:'Sarabun',sans-serif;font-size:13px;line-height:1.7;resize:vertical;}
+.content-editor:focus{outline:none;border-color:#0066cc;}
+.add-step-bar{display:flex;gap:8px;align-items:center;margin-top:10px;flex-wrap:wrap;}
+.step-type-sel{padding:7px 10px;border:1.5px solid #dde;border-radius:8px;font-family:'Sarabun',sans-serif;font-size:13px;background:#fff;}
+.add-step-inp{flex:1;min-width:180px;padding:8px 12px;border:1.5px solid #dde;border-radius:8px;font-family:'Sarabun',sans-serif;font-size:13px;}
+.add-step-inp:focus{outline:none;border-color:#0066cc;}
+.add-step-btn{padding:8px 16px;background:linear-gradient(135deg,#0066cc,#003380);color:#fff;border:none;border-radius:8px;font-family:'Sarabun',sans-serif;font-size:13px;font-weight:700;cursor:pointer;}
+.step-row{display:flex;align-items:flex-start;gap:10px;padding:10px 12px;background:#fff;border:1.5px solid #e0e6f0;border-radius:9px;margin-bottom:8px;}
+.step-num{width:26px;height:26px;border-radius:7px;background:#e3f0ff;color:#0066cc;font-size:11px;font-weight:800;display:flex;align-items:center;justify-content:center;flex-shrink:0;}
+.step-del{background:none;border:none;color:#bbb;cursor:pointer;font-size:16px;padding:0 2px;line-height:1;}
+.step-del:hover{color:#cc0000;}
+
+/* DETAIL */
+.detail-header{background:linear-gradient(135deg,#001a4d,#003380);color:#fff;border-radius:14px;padding:24px;margin-bottom:20px;display:flex;align-items:center;gap:18px;}
+.detail-av{width:64px;height:64px;border-radius:50%;background:linear-gradient(135deg,#0066cc,#00aaff);display:flex;align-items:center;justify-content:center;font-size:24px;font-weight:800;color:#fff;flex-shrink:0;}
+
+/* ALERTS */
+.alert{padding:11px 16px;border-radius:9px;font-size:14px;margin-bottom:14px;}
+.alert-s{background:#e3fff0;border:1px solid #aaddbb;color:#1a5c30;}
+.alert-d{background:#ffe3e3;border:1px solid #ffaaaa;color:#8a0000;}
+.alert-w{background:#fffbe6;border:1px solid #ffd666;color:#7a5500;}
+.alert-i{background:#e3f0ff;border:1px solid #99ccff;color:#003380;}
+.empty-state{text-align:center;padding:48px 20px;color:#888;}
+.empty-icon{font-size:48px;margin-bottom:12px;}
+.empty-state p{font-size:15px;}
+
+/* PRINT REPORT */
+.prt-table{width:100%;border-collapse:collapse;font-size:13px;}
+.prt-table th{background:#001a4d;color:#fff;padding:10px 12px;text-align:left;font-weight:700;font-size:12px;}
+.prt-table td{padding:9px 12px;border-bottom:1px solid #e8edf5;vertical-align:middle;}
+.prt-sec{font-size:15px;font-weight:800;color:#001a4d;margin:18px 0 10px;display:flex;align-items:center;gap:8px;}
+.prt-sec span{display:inline-block;width:4px;height:18px;background:linear-gradient(#0066cc,#003380);border-radius:2px;}
+.storage-bar{display:flex;align-items:center;gap:8px;padding:8px 14px;background:rgba(0,200,100,.07);border-radius:8px;margin-bottom:14px;font-size:12px;color:#445;border:1px solid rgba(0,200,100,.25);}
+
+/* MOBILE RESPONSIVE */
+@media(max-width:768px){
+  .hamburger{display:block;}
+  .sidebar{transform:translateX(-248px);}
+  .sidebar.mobile-open{transform:translateX(0);}
+  .sidebar-overlay.active{display:block;}
+  .main-content{margin-left:0;padding:16px;padding-top:60px;}
+  .stats-grid{grid-template-columns:1fr 1fr;}
+  .modal{border-radius:16px;}
+  .form-row{grid-template-columns:1fr;}
+  div[style*="grid-template-columns:1fr 1fr"],div[style*="grid-template-columns:2fr 1fr"]{display:block!important;}
+  div[style*="grid-template-columns:1fr 1fr"] > *,div[style*="grid-template-columns:2fr 1fr"] > *{margin-bottom:16px;}
+  .page-header h1{font-size:18px;}
+  .stat-val{font-size:22px;}
+}
+@media(max-width:480px){
+  .stats-grid{grid-template-columns:1fr;}
+  .login-card{padding:28px 20px;}
+}
+</style>
+</head>
+<body>
+
+<!-- LOADING OVERLAY -->
+<div id="loading-overlay">
+  <div class="ld-logo">WD</div>
+  <div class="ld-spinner"></div>
+  <p id="loading-msg">กำลังเชื่อมต่อ Firebase...</p>
+</div>
+
+<!-- HAMBURGER -->
+<button class="hamburger" id="hamburger-btn" onclick="toggleSidebar()">☰</button>
+<div class="sidebar-overlay" id="sidebar-overlay" onclick="closeSidebar()"></div>
+
+<!-- LOGIN -->
+<div id="page-login" class="page">
+  <div class="login-bg">
+    <div class="login-card">
+      <div class="login-logo">
+        <div class="wd-badge"><span>WD</span></div>
+        <h2>Security Training Portal</h2>
+        <p>Western Digital Storage Technologies (Thailand) Ltd.</p>
+      </div>
+      <div id="login-status" class="login-status"></div>
+      <div id="login-error" class="login-error"></div>
+      <div class="form-group"><label>รหัสพนักงาน</label><input type="text" id="login-user" placeholder="เช่น guard001" autocomplete="username"></div>
+      <div class="form-group"><label>รหัสผ่าน</label><input type="password" id="login-pass" placeholder="รหัสผ่าน" autocomplete="current-password" onkeydown="if(event.key==='Enter')doLogin()"></div>
+      <button class="btn-login" id="btn-login" onclick="doLogin()">เข้าสู่ระบบ</button>
+    </div>
+  </div>
+</div>
+
+<!-- ADMIN -->
+<div id="page-admin" class="page">
+  <div class="app-shell">
+    <div class="sidebar" id="admin-sidebar">
+      <div class="sidebar-header">
+        <div class="brand">
+          <div class="logo-box">WD</div>
+          <div><div class="brand-text">Security Portal</div><div class="brand-sub">Admin Panel</div></div>
+        </div>
+      </div>
+      <nav class="sidebar-nav">
+        <div class="nav-section">หลัก</div>
+        <div class="nav-item active" onclick="adminNav('dashboard')"><span class="nav-icon">📊</span>แดชบอร์ด</div>
+        <div class="nav-item" onclick="adminNav('users')"><span class="nav-icon">👥</span>จัดการผู้ใช้</div>
+        <div class="nav-item" onclick="adminNav('access')"><span class="nav-icon">🔐</span>จัดการสิทธิ์<span id="disabled-badge" style="display:none;background:#cc0000;color:#fff;font-size:10px;font-weight:800;padding:1px 6px;border-radius:10px;margin-left:6px;"></span></div>
+        <div class="nav-item" onclick="adminNav('passwords')"><span class="nav-icon">🔑</span>จัดการรหัสผ่าน</div>
+        <div class="nav-section">ระบบ</div>
+        <div class="nav-item" onclick="adminNav('notifications')"><span class="nav-icon">🔔</span>การแจ้งเตือน<span id="admin-notif-badge" style="display:none;background:#cc0000;color:#fff;font-size:10px;font-weight:800;padding:1px 6px;border-radius:10px;margin-left:6px;"></span></div>
+        <div class="nav-item" onclick="adminNav('reports')"><span class="nav-icon">📋</span>รายงานผล</div>
+        <div class="nav-item" onclick="adminNav('company')"><span class="nav-icon">🏢</span>ข้อมูลบริษัท</div>
+        <div class="nav-section">เนื้อหา</div>
+        <div class="nav-item" onclick="adminNav('regulations')"><span class="nav-icon">📚</span>จัดการระเบียบ WI</div>
+      </nav>
+      <div class="sidebar-footer">
+        <div class="sidebar-user">
+          <div class="user-avatar">A</div>
+          <div class="user-info"><div class="user-name">Administrator</div><div class="user-role">Admin <span class="online-dot"></span></div></div>
+        </div>
+        <button class="sb-btn sb-gray" onclick="openOwnPwModal('admin')">🔑 เปลี่ยนรหัสผ่าน</button>
+        <button class="sb-btn sb-blue" onclick="openPrintReportModal()">🖨️ Print Report</button>
+        <button class="sb-btn sb-green" onclick="exportExcel()">📊 Export Excel</button>
+        <button class="sb-btn sb-red" onclick="doLogout()">🚪 ออกจากระบบ</button>
+      </div>
+    </div>
+
+    <div class="main-content">
+      <!-- DASHBOARD -->
+      <div id="admin-page-dashboard" class="admin-sub">
+        <div class="page-header">
+          <h1>📊 แดชบอร์ดภาพรวม <span class="realtime-badge"><span class="online-dot"></span>LIVE</span></h1>
+          <p>ข้อมูลสรุปการฝึกอบรม — อัปเดตแบบ Real-time</p>
+        </div>
+        <div id="storage-status-bar" class="storage-bar">🔄 กำลังโหลด...</div>
+        <div class="stats-grid" id="stats-grid"></div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:18px;">
+          <div class="card"><div class="card-header"><div class="card-title">📈 ความคืบหน้าการอ่าน WI</div></div><div id="wi-progress-list"></div></div>
+          <div class="card"><div class="card-header"><div class="card-title">🏆 คะแนนแบบทดสอบล่าสุด</div></div><div id="recent-scores-list"></div></div>
+        </div>
+        <div class="card" style="margin-top:18px;"><div class="card-header"><div class="card-title">🔔 การแจ้งเตือนล่าสุด</div></div><div id="dash-notif-list"></div></div>
+      </div>
+
+      <!-- USERS -->
+      <div id="admin-page-users" class="admin-sub" style="display:none;">
+        <div class="page-header">
+          <div style="display:flex;justify-content:space-between;align-items:flex-start;flex-wrap:wrap;gap:12px;">
+            <div><h1>👥 จัดการผู้ใช้งาน</h1><p>เพิ่ม แก้ไข และจัดการบัญชีผู้ใช้</p></div>
+            <button class="btn btn-p" onclick="openAddUserModal()">+ เพิ่มผู้ใช้ใหม่</button>
+          </div>
+        </div>
+        <div class="card">
+          <div class="card-header">
+            <div class="card-title">รายชื่อผู้ใช้งาน</div>
+            <input type="text" id="user-search" placeholder="🔍 ค้นหาชื่อ/รหัส..." style="padding:7px 12px;border:1.5px solid #dde;border-radius:8px;font-family:'Sarabun',sans-serif;font-size:13px;" oninput="renderUserTable()">
+          </div>
+          <div class="table-wrap"><table><thead><tr><th>รหัส</th><th>ชื่อ-นามสกุล</th><th>ตำแหน่ง</th><th>สถานะสิทธิ์</th><th>ความคืบหน้า</th><th>คะแนนล่าสุด</th><th>จัดการ</th></tr></thead><tbody id="user-table-body"></tbody></table></div>
+        </div>
+      </div>
+
+      <!-- ACCESS CONTROL -->
+      <div id="admin-page-access" class="admin-sub" style="display:none;">
+        <div class="page-header"><h1>🔐 จัดการสิทธิ์การเข้าใช้งาน</h1><p>เปิด/ปิดสิทธิ์การ Login ของผู้ใช้แต่ละคน</p></div>
+        <div class="alert alert-i">💡 เมื่อปิดสิทธิ์ ผู้ใช้จะไม่สามารถ Login เข้าระบบได้ทันที แม้มีรหัสผ่านที่ถูกต้อง</div>
+        <div class="card">
+          <div class="card-header"><div class="card-title">รายการสิทธิ์ผู้ใช้</div>
+            <div style="display:flex;gap:8px;">
+              <button class="btn btn-sm btn-s" onclick="setAllAccess(true)">✅ เปิดทั้งหมด</button>
+              <button class="btn btn-sm btn-d" onclick="setAllAccess(false)">🚫 ปิดทั้งหมด</button>
+            </div>
+          </div>
+          <div class="table-wrap"><table><thead><tr><th>รหัส</th><th>ชื่อ-นามสกุล</th><th>ตำแหน่ง</th><th>สถานะ</th><th>เปลี่ยนแปลงล่าสุด</th><th>Action</th></tr></thead><tbody id="access-table-body"></tbody></table></div>
+        </div>
+      </div>
+
+      <!-- PASSWORDS -->
+      <div id="admin-page-passwords" class="admin-sub" style="display:none;">
+        <div class="page-header"><h1>🔑 จัดการรหัสผ่าน</h1><p>ตั้งค่าและรีเซ็ตรหัสผ่านของผู้ใช้</p></div>
+        <div class="card"><div class="card-header"><div class="card-title">รายการผู้ใช้ทั้งหมด</div></div><div class="table-wrap"><table><thead><tr><th>รหัส</th><th>ชื่อ-นามสกุล</th><th>ตำแหน่ง</th><th>เปลี่ยนรหัสล่าสุด</th><th>จำนวนครั้ง</th><th>Action</th></tr></thead><tbody id="pw-table-body"></tbody></table></div></div>
+      </div>
+
+      <!-- NOTIFICATIONS -->
+      <div id="admin-page-notifications" class="admin-sub" style="display:none;">
+        <div class="page-header">
+          <div style="display:flex;justify-content:space-between;align-items:flex-start;flex-wrap:wrap;gap:10px;">
+            <div><h1>🔔 การแจ้งเตือน</h1><p>แจ้งเตือน Real-time เมื่อผู้ใช้ทำแบบทดสอบเสร็จ</p></div>
+            <button class="btn btn-o btn-sm" onclick="markAllRead()">✓ อ่านทั้งหมด</button>
+          </div>
+        </div>
+        <div class="card" id="notif-list-card"></div>
+      </div>
+
+      <!-- REPORTS -->
+      <div id="admin-page-reports" class="admin-sub" style="display:none;">
+        <div class="page-header"><h1>📋 รายงานผลการฝึกอบรม</h1><p>สรุปผลการอ่านและทำแบบทดสอบ</p></div>
+        <div class="card"><div class="card-header"><div class="card-title">ตารางผลการทดสอบทั้งหมด</div></div><div class="table-wrap"><table><thead><tr><th>ผู้ใช้</th><th>หัวข้อ</th><th>คะแนน</th><th>ผ่าน/ไม่ผ่าน</th><th>ครั้งที่</th><th>วันที่</th></tr></thead><tbody id="report-table-body"></tbody></table></div></div>
+      </div>
+
+      <!-- COMPANY -->
+      <div id="admin-page-company" class="admin-sub" style="display:none;">
+        <div class="page-header"><h1>🏢 ข้อมูลบริษัท</h1><p>แก้ไขข้อมูลบริษัทที่แสดงในระบบ (Real-time)</p></div>
+        <div class="company-banner">
+          <div class="co-logo-box"><div class="wd-text" id="cp-logo-prev">WD</div></div>
+          <div><div style="font-size:22px;font-weight:800;" id="cp-name-prev">Western Digital Storage Technologies (Thailand) Ltd.</div><div style="opacity:.75;margin-top:4px;" id="cp-dept-prev">Security Department — Main Gate 1</div><div style="opacity:.6;font-size:13px;margin-top:3px;" id="cp-addr-prev">700/1 Moo 1 Nong Prue, Bang Lamung, Chonburi 20150</div></div>
+        </div>
+        <div class="card">
+          <div class="card-header"><div class="card-title">แก้ไขข้อมูลบริษัท</div></div>
+          <div class="form-row"><div class="form-field"><label>ชื่อบริษัท</label><input type="text" id="cp-name" oninput="updateCoPrev()"></div><div class="form-field"><label>หน่วยงาน</label><input type="text" id="cp-dept" oninput="updateCoPrev()"></div></div>
+          <div class="form-row"><div class="form-field"><label>ที่อยู่</label><input type="text" id="cp-addr" oninput="updateCoPrev()"></div><div class="form-field"><label>ตัวย่อโลโก้</label><input type="text" id="cp-logo" oninput="updateCoPrev()"></div></div>
+          <button class="btn btn-p" onclick="saveCoInfo()">💾 บันทึก (Sync ทันที)</button>
+          <span id="cp-save-msg" style="margin-left:12px;color:#1a7a40;font-size:13px;display:none;">✓ บันทึกและ Sync แล้ว</span>
+        </div>
+      </div>
+
+      <!-- REGULATIONS -->
+      <div id="admin-page-regulations" class="admin-sub" style="display:none;">
+        <div class="page-header">
+          <div style="display:flex;justify-content:space-between;align-items:flex-start;flex-wrap:wrap;gap:12px;">
+            <div><h1>📚 จัดการระเบียบ WI-SSC-001 <span class="realtime-badge"><span class="online-dot"></span>LIVE</span></h1><p>การแก้ไขจะ Sync ไปยัง User ทันที (สูงสุด 17 ระเบียบ)</p></div>
+            <div style="display:flex;gap:8px;flex-wrap:wrap;"><button class="btn btn-p" onclick="openAddRegModal()" id="btn-add-reg">+ เพิ่มระเบียบใหม่</button><button class="btn btn-o" onclick="saveAllRegs()">💾 บันทึกทั้งหมด</button></div>
+          </div>
+        </div>
+        <div class="reg-count-bar"><div class="reg-count-num" id="reg-count-display">0</div><div class="reg-count-label">ระเบียบปัจจุบัน</div><div class="reg-limit">สูงสุด 17 | <span id="reg-slots-left" style="color:#0066cc;font-weight:700;"></span></div></div>
+        <div id="reg-save-alert" class="alert alert-s" style="display:none;"></div>
+        <div id="regulations-list"></div>
+      </div>
+
+      <!-- USER DETAIL -->
+      <div id="admin-page-user-detail" class="admin-sub" style="display:none;">
+        <div class="breadcrumb"><span style="cursor:pointer;color:#0066cc;" onclick="adminNav('users')">👥 จัดการผู้ใช้</span> › <span id="ud-breadcrumb">รายละเอียด</span></div>
+        <div class="detail-header" id="ud-header"></div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:18px;">
+          <div class="card"><div class="card-header"><div class="card-title">📖 ความคืบหน้าการอ่าน WI</div></div><div id="ud-wi-progress"></div></div>
+          <div class="card"><div class="card-header"><div class="card-title">🏆 ประวัติแบบทดสอบ</div></div><div id="ud-quiz-history"></div></div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- GUARD -->
+<div id="page-guard" class="page">
+  <div class="app-shell">
+    <div class="sidebar" id="guard-sidebar">
+      <div class="sidebar-header">
+        <div class="brand"><div class="logo-box">WD</div><div><div class="brand-text">Security Portal</div><div class="brand-sub" id="guard-sidebar-name">Guard</div></div></div>
+      </div>
+      <nav class="sidebar-nav">
+        <div class="nav-section">เมนูหลัก</div>
+        <div class="nav-item active" onclick="guardNav('home')"><span class="nav-icon">🏠</span>หน้าหลัก</div>
+        <div class="nav-item" onclick="guardNav('wi')"><span class="nav-icon">📚</span>เนื้อหา WI-SSC-001</div>
+        <div class="nav-item" onclick="guardNav('quiz')"><span class="nav-icon">📝</span>แบบทดสอบ</div>
+        <div class="nav-item" onclick="guardNav('scores')"><span class="nav-icon">🏆</span>ผลคะแนน</div>
+        <div class="nav-item" onclick="guardNav('company')"><span class="nav-icon">🏢</span>ข้อมูลบริษัท</div>
+      </nav>
+      <div class="sidebar-footer">
+        <div class="sidebar-user">
+          <div class="user-avatar" id="guard-av-letter">G</div>
+          <div class="user-info"><div class="user-name" id="guard-fullname">Guard</div><div class="user-role">Security Guard <span class="online-dot"></span></div></div>
+        </div>
+        <button class="sb-btn sb-gray" onclick="openOwnPwModal('guard')">🔑 เปลี่ยนรหัสผ่าน</button>
+        <button class="sb-btn sb-red" onclick="doLogout()">🚪 ออกจากระบบ</button>
+      </div>
+    </div>
+    <div class="main-content">
+      <div id="guard-page-home" class="guard-sub">
+        <div class="page-header"><h1 id="guard-welcome-msg">ยินดีต้อนรับ</h1><p>ระบบฝึกอบรม WI-SSC-001 Main Gate 1 — <span class="realtime-badge"><span class="online-dot"></span>ONLINE</span></p></div>
+        <div class="stats-grid" id="guard-stats-grid"></div>
+        <div style="display:grid;grid-template-columns:2fr 1fr;gap:18px;">
+          <div class="card"><div class="card-header"><div class="card-title">📚 ความคืบหน้าการเรียนรู้</div></div><div id="guard-wi-progress-list"></div></div>
+          <div class="card"><div class="card-header"><div class="card-title">🔔 แจ้งเตือน</div></div><div id="guard-notif-preview"></div></div>
+        </div>
+      </div>
+      <div id="guard-page-wi" class="guard-sub" style="display:none;">
+        <div class="page-header"><h1>📚 เนื้อหา WI-SSC-001 <span class="realtime-badge"><span class="online-dot"></span>LIVE</span></h1><p>เนื้อหาอัปเดตแบบ Real-time จาก Admin</p></div>
+        <div id="wi-list-guard"></div>
+      </div>
+      <div id="guard-page-wi-read" class="guard-sub" style="display:none;">
+        <div class="breadcrumb"><span style="cursor:pointer;color:#0066cc;" onclick="guardNav('wi')">📚 เนื้อหา WI</span> › <span id="wi-read-breadcrumb"></span></div>
+        <div class="page-header" style="margin-top:10px;"><h1 id="wi-read-title"></h1></div>
+        <div class="card" style="padding:0;overflow:hidden;"><div id="wi-read-content"></div></div>
+        <div style="margin-top:16px;display:flex;gap:10px;flex-wrap:wrap;">
+          <button class="btn btn-p" id="btn-mark-read" onclick="markWIRead()">✓ อ่านแล้ว — บันทึกความคืบหน้า</button>
+          <button class="btn btn-o" onclick="guardNav('wi')">← กลับ</button>
+        </div>
+      </div>
+      <div id="guard-page-quiz" class="guard-sub" style="display:none;">
+        <div class="page-header"><h1>📝 เลือกแบบทดสอบ</h1><p>เลือกหัวข้อที่ต้องการทดสอบ</p></div>
+        <div id="quiz-menu-list"></div>
+      </div>
+      <div id="guard-page-quiz-run" class="guard-sub" style="display:none;">
+        <div class="quiz-container">
+          <div class="quiz-hdr">
+            <div style="display:flex;justify-content:space-between;align-items:center;">
+              <div><div class="quiz-qn" id="quiz-q-num-label">คำถามที่ 1 / 5</div><div style="font-size:14px;opacity:.75;" id="quiz-topic-label"></div></div>
+              <div style="text-align:center;"><div class="quiz-timer" id="quiz-timer-display">15</div><div style="font-size:11px;opacity:.65;">วินาที</div></div>
+            </div>
+          </div>
+          <div class="quiz-pips" id="quiz-progress-pips"></div>
+          <div class="card"><p style="font-size:17px;font-weight:700;color:#001a4d;margin-bottom:18px;line-height:1.6;" id="quiz-question-text"></p><div class="quiz-options" id="quiz-options-list"></div></div>
+          <div id="quiz-feedback" style="display:none;margin-top:14px;"></div>
+          <div style="margin-top:14px;"><button class="btn btn-p" id="quiz-next-btn" onclick="quizNext()" style="display:none;">ถัดไป →</button></div>
+        </div>
+      </div>
+      <div id="guard-page-quiz-result" class="guard-sub" style="display:none;">
+        <div class="quiz-container">
+          <div class="card" style="text-align:center;padding:40px 30px;">
+            <div id="quiz-result-icon" style="font-size:64px;margin-bottom:16px;"></div>
+            <div id="quiz-result-title" style="font-size:24px;font-weight:800;color:#001a4d;margin-bottom:8px;"></div>
+            <div id="quiz-result-score" style="font-size:48px;font-weight:900;margin-bottom:8px;"></div>
+            <div id="quiz-result-msg" style="font-size:15px;color:#667;margin-bottom:24px;"></div>
+            <div id="quiz-result-attempt" style="font-size:13px;color:#888;margin-bottom:20px;"></div>
+            <div style="display:flex;gap:12px;justify-content:center;flex-wrap:wrap;">
+              <button class="btn btn-o" onclick="guardNav('quiz')">← กลับเลือกหัวข้อ</button>
+              <button class="btn btn-p" id="quiz-retry-btn" onclick="retryQuiz()">🔁 ทำใหม่</button>
+            </div>
+          </div>
+          <div class="card" style="margin-top:18px;"><div class="card-title" style="margin-bottom:14px;">รายละเอียดคำตอบ</div><div id="quiz-result-detail"></div></div>
+        </div>
+      </div>
+      <div id="guard-page-scores" class="guard-sub" style="display:none;">
+        <div class="page-header"><h1>🏆 ผลคะแนนของฉัน</h1><p>ประวัติการทำแบบทดสอบทั้งหมด</p></div>
+        <div id="guard-scores-list"></div>
+      </div>
+      <div id="guard-page-company" class="guard-sub" style="display:none;">
+        <div class="page-header"><h1>🏢 ข้อมูลบริษัท</h1></div>
+        <div class="company-banner">
+          <div class="co-logo-box"><div class="wd-text" id="guard-cp-logo">WD</div></div>
+          <div><div style="font-size:22px;font-weight:800;" id="guard-cp-name">Western Digital Storage Technologies (Thailand) Ltd.</div><div style="opacity:.75;margin-top:4px;" id="guard-cp-dept">Security Department — Main Gate 1</div><div style="opacity:.6;font-size:13px;margin-top:3px;" id="guard-cp-addr">700/1 Moo 1 Nong Prue, Bang Lamung, Chonburi 20150</div></div>
+        </div>
+        <div class="card"><div class="card-title" style="margin-bottom:12px;">เกี่ยวกับ WI-SSC-001</div><p style="font-size:15px;color:#445;line-height:1.8;">เอกสาร <strong>WI-SSC-001</strong> คือคู่มือขั้นตอนปฏิบัติงานสำหรับเจ้าหน้าที่ประจำ Main Gate 1 ครอบคลุม <span id="guard-wi-total-count">0</span> หัวข้อหลัก</p></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- MODALS -->
+<div class="modal-overlay" id="modal-user">
+  <div class="modal">
+    <h3 id="modal-user-title">เพิ่มผู้ใช้ใหม่</h3>
+    <div class="form-row"><div class="form-field"><label>รหัสพนักงาน *</label><input type="text" id="mu-id" placeholder="guard001"></div><div class="form-field"><label>ชื่อ-นามสกุล *</label><input type="text" id="mu-name" placeholder="สมชาย ใจดี"></div></div>
+    <div class="form-row"><div class="form-field"><label>ตำแหน่ง</label><input type="text" id="mu-position" placeholder="เจ้าหน้าที่รักษาความปลอดภัย"></div><div class="form-field"><label>รหัสผ่าน *</label><input type="password" id="mu-pass" placeholder="รหัสผ่าน" oninput="checkPwStr('mu-pass','mu-pw-strength','mu-pw-label')"></div></div>
+    <div id="mu-pw-strength" class="pw-strength" style="width:0;"></div><div id="mu-pw-label" class="pw-sl" style="margin-bottom:10px;"></div>
+    <div class="form-field"><label>เปิดสิทธิ์การเข้าใช้งาน</label><select id="mu-enabled"><option value="true">✅ เปิดสิทธิ์ทันที</option><option value="false">🚫 ปิดสิทธิ์ (รอ Admin เปิด)</option></select></div>
+    <div id="mu-error" class="alert alert-d" style="display:none;"></div>
+    <div class="modal-footer"><button class="btn btn-o" onclick="closeModal('modal-user')">ยกเลิก</button><button class="btn btn-p" onclick="saveUser()">💾 บันทึก</button></div>
+  </div>
+</div>
+<div class="modal-overlay" id="modal-reset-pw">
+  <div class="modal">
+    <h3>🔑 รีเซ็ตรหัสผ่าน — <span id="reset-pw-username"></span></h3>
+    <div id="reset-pw-hist" style="margin-bottom:16px;"></div>
+    <div class="form-field"><label>รหัสผ่านใหม่</label><input type="password" id="reset-pw-new" placeholder="กรอกรหัสผ่านใหม่" oninput="checkPwStr('reset-pw-new','reset-pw-strength','reset-pw-label')"><div id="reset-pw-strength" class="pw-strength" style="width:0;margin-top:6px;"></div><div id="reset-pw-label" class="pw-sl"></div></div>
+    <div class="form-field"><label>ยืนยันรหัสผ่านใหม่</label><input type="password" id="reset-pw-confirm" placeholder="ยืนยันรหัสผ่าน"></div>
+    <div id="reset-pw-error" class="alert alert-d" style="display:none;"></div>
+    <div class="modal-footer"><button class="btn btn-o" onclick="closeModal('modal-reset-pw')">ยกเลิก</button><button class="btn btn-p" onclick="doResetPw()">🔑 รีเซ็ต</button></div>
+  </div>
+</div>
+<div class="modal-overlay" id="modal-own-pw">
+  <div class="modal">
+    <h3>🔑 เปลี่ยนรหัสผ่านของฉัน</h3>
+    <div class="form-field"><label>รหัสผ่านเดิม</label><input type="password" id="own-pw-old" placeholder="รหัสผ่านเดิม"></div>
+    <div class="form-field"><label>รหัสผ่านใหม่</label><input type="password" id="own-pw-new" placeholder="รหัสผ่านใหม่" oninput="checkPwStr('own-pw-new','own-pw-strength','own-pw-label')"><div id="own-pw-strength" class="pw-strength" style="width:0;margin-top:6px;"></div><div id="own-pw-label" class="pw-sl"></div></div>
+    <div class="form-field"><label>ยืนยันรหัสผ่านใหม่</label><input type="password" id="own-pw-confirm" placeholder="ยืนยันรหัสผ่าน"></div>
+    <div id="own-pw-error" class="alert alert-d" style="display:none;"></div>
+    <div class="modal-footer"><button class="btn btn-o" onclick="closeModal('modal-own-pw')">ยกเลิก</button><button class="btn btn-p" onclick="doOwnPwChange()">💾 บันทึก</button></div>
+  </div>
+</div>
+<div class="modal-overlay" id="modal-confirm-delete">
+  <div class="modal" style="max-width:380px;">
+    <h3>⚠️ ยืนยันการลบ</h3>
+    <p style="font-size:15px;color:#445;margin-bottom:20px;">คุณต้องการลบผู้ใช้ <strong id="delete-username"></strong> ออกจากระบบ?</p>
+    <div class="modal-footer"><button class="btn btn-o" onclick="closeModal('modal-confirm-delete')">ยกเลิก</button><button class="btn btn-d" onclick="confirmDeleteUser()">🗑️ ลบ</button></div>
+  </div>
+</div>
+<div class="modal-overlay" id="modal-add-reg">
+  <div class="modal modal-lg">
+    <h3 id="modal-reg-title">➕ เพิ่มระเบียบใหม่</h3>
+    <div class="form-row"><div class="form-field"><label>หมายเลขระเบียบ *</label><input type="text" id="reg-num-input" placeholder="เช่น 9" maxlength="10"></div><div class="form-field"><label>ชื่อระเบียบ *</label><input type="text" id="reg-title-input" placeholder="ชื่อระเบียบ"></div></div>
+    <div class="form-field"><label>คำอธิบายย่อ</label><input type="text" id="reg-sub-input" placeholder="Subtitle"></div>
+    <div class="form-field"><label>เนื้อหาหลัก</label><textarea class="content-editor" id="reg-content-input" placeholder="กรอกเนื้อหา..."></textarea></div>
+    <div style="margin-bottom:10px;"><div style="font-size:13px;font-weight:700;color:#445;margin-bottom:8px;">ขั้นตอนการปฏิบัติ</div><div id="modal-steps-list"></div><div class="add-step-bar"><select class="step-type-sel" id="new-step-type"><option value="process">ขั้นตอน</option><option value="decision">จุดตัดสินใจ</option><option value="yes">ผล: ผ่าน</option><option value="no">ผล: ไม่ผ่าน</option></select><input type="text" class="add-step-inp" id="new-step-text" placeholder="พิมพ์รายละเอียด แล้วกด +" onkeydown="if(event.key==='Enter')addModalStep()"><button class="add-step-btn" onclick="addModalStep()">+ เพิ่ม</button></div></div>
+    <div id="modal-reg-error" class="alert alert-d" style="display:none;"></div>
+    <div class="modal-footer"><button class="btn btn-o" onclick="closeModal('modal-add-reg')">ยกเลิก</button><button class="btn btn-p" id="btn-save-reg" onclick="saveRegulation()">💾 บันทึก</button></div>
+  </div>
+</div>
+<div class="modal-overlay" id="modal-print-report">
+  <div class="modal modal-xl">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;"><h3 style="margin-bottom:0;">🖨️ Print Report</h3><button class="btn btn-o btn-sm" onclick="closeModal('modal-print-report')">✕ ปิด</button></div>
+    <div id="print-report-area">
+      <div style="border-bottom:2px solid #001a4d;padding-bottom:14px;margin-bottom:4px;"><div style="display:flex;align-items:center;gap:14px;"><div style="width:52px;height:52px;background:linear-gradient(135deg,#0066cc,#003380);border-radius:10px;display:flex;align-items:center;justify-content:center;color:#fff;font-size:18px;font-weight:900;flex-shrink:0;">WD</div><div><div style="font-size:16px;font-weight:800;color:#001a4d;" id="pr-company-name"></div><div style="font-size:12px;color:#667;" id="pr-company-dept"></div></div><div style="margin-left:auto;text-align:right;"><div style="font-size:12px;color:#888;">วันที่พิมพ์</div><div style="font-size:13px;font-weight:700;color:#001a4d;" id="pr-print-date"></div></div></div></div>
+      <div class="prt-sec"><span></span> ความคืบหน้าการอ่าน WI</div>
+      <div class="table-wrap"><table class="prt-table"><thead><tr><th>#</th><th>รหัส</th><th>ชื่อ-นามสกุล</th><th>ตำแหน่ง</th><th style="text-align:center;">อ่านแล้ว</th><th style="text-align:center;">ทั้งหมด</th><th style="text-align:center;">%</th></tr></thead><tbody id="pr-wi-tbody"></tbody></table></div>
+      <div class="prt-sec" style="margin-top:24px;"><span></span> คะแนนแบบทดสอบ</div>
+      <div class="table-wrap"><table class="prt-table"><thead><tr><th>#</th><th>รหัส</th><th>ชื่อ-นามสกุล</th><th>หัวข้อ WI</th><th style="text-align:center;">คะแนน</th><th style="text-align:center;">ผล</th><th style="text-align:center;">ครั้ง</th><th>วันที่</th></tr></thead><tbody id="pr-score-tbody"></tbody></table></div>
+    </div>
+    <div class="modal-footer" style="border-top:1px solid #e8edf5;padding-top:16px;margin-top:16px;"><button class="btn btn-o" onclick="closeModal('modal-print-report')">ปิด</button><button class="btn btn-p" onclick="window.print()">🖨️ พิมพ์</button></div>
+  </div>
+</div>
+
+<script>
+// ============================================================
+// FIREBASE CONFIG — แทนที่ด้วยค่าจาก Firebase Console ของคุณ
+// ============================================================
+const FIREBASE_CONFIG = {
+  apiKey: "AIzaSyDrm3AZrr6K4FtaciBYzShofLRWAv39lmA",
+  authDomain: "wd-security-training-ver01.firebaseapp.com",
+  projectId: "wd-security-training-ver01",
+  storageBucket: "wd-security-training-ver01.firebasestorage.app",
+  messagingSenderId: "511051146773",
+  appId: "1:511051146773:web:8b5e24704d5d81d81f901c"
+};
+
+// ============================================================
+// DEFAULT DATA
+// ============================================================
+var DEFAULT_REGULATIONS = [
+  {num:'1',title:'การควบคุมและตรวจสอบบุคคลก่อนเข้าพื้นที่',sub:'Person Access Control — บัตรประจำตัว ตรวจสอบสิทธิ์',steps:[{type:'process',text:'1.1 แสดงบัตรประจำตัว'},{type:'process',text:'1.2 ตรวจสอบสิทธิ์การเข้าพื้นที่'},{type:'decision',text:'D1: พบบัตรประจำตัว?'},{type:'yes',text:'พบบัตร → อนุญาตเข้าพื้นที่'},{type:'no',text:'ไม่พบบัตร → สกัดสอบถาม แจ้ง Control'}],content:'<div style="padding:20px;"><h2 style="color:#001a4d;">1. การควบคุมและตรวจสอบบุคคลก่อนเข้าพื้นที่</h2><p style="margin-top:10px;line-height:1.8;color:#445;">รปภ. ตรวจสอบบัตรประจำตัว ยืนยันสิทธิ์ ติดตาม CCTV และรายงานตามลำดับชั้น</p></div>'},
+  {num:'2',title:'การควบคุมและตรวจสอบผู้มาติดต่องาน',sub:'Visitor Control — ลงทะเบียน ตรวจสอบ ติดตาม',steps:[{type:'process',text:'แสดงบัตรประจำตัว'},{type:'decision',text:'D1: พบบัตร?'},{type:'yes',text:'พบบัตร → อนุญาตเข้าพื้นที่'},{type:'no',text:'ไม่พบบัตร → สกัดสอบถาม'}],content:'<div style="padding:20px;"><h2 style="color:#001a4d;">2. การควบคุมผู้มาติดต่องาน</h2><p style="margin-top:10px;line-height:1.8;color:#445;">ผู้มาติดต่อต้องแสดงบัตรประจำตัว รปภ. ตรวจสอบและดำเนินการตามขั้นตอน</p></div>'},
+  {num:'3',title:'การบริหารจัดการพื้นที่จอดรถผู้มาติดต่อ',sub:'Visitor Parking Management',steps:[{type:'process',text:'ยื่น Visitor Parking Request'},{type:'decision',text:'D1: ข้อมูลตรงกับใบแจ้ง?'},{type:'yes',text:'ตรงตามใบแจ้ง → อนุญาตจอด'},{type:'no',text:'ไม่ตรง → จอดภายนอก'}],content:'<div style="padding:20px;"><h2 style="color:#001a4d;">3. การบริหารจัดการพื้นที่จอดรถ</h2><p style="margin-top:10px;line-height:1.8;color:#445;">ยื่น Visitor Parking Request → ตรวจสอบข้อมูล → อนุญาต/ปฏิเสธ</p></div>'},
+  {num:'4',title:'การควบคุมและตรวจสอบยานพาหนะ',sub:'Vehicle Access Control — บัตรจอดรถ สติกเกอร์',steps:[{type:'process',text:'แสดงบัตรอนุญาตจอดรถ'},{type:'decision',text:'D: มีบัตรอนุญาต?'},{type:'yes',text:'มีบัตรถูกต้อง → เปิดไม้กั้น'},{type:'no',text:'ไม่มีบัตร → สอบถาม ระงับ'}],content:'<div style="padding:20px;"><h2 style="color:#001a4d;">4. การควบคุมยานพาหนะ</h2><p style="margin-top:10px;line-height:1.8;color:#445;">ตรวจสอบบัตรอนุญาตจอดรถ สติกเกอร์ CCTV บันทึกหลักฐาน</p></div>'},
+  {num:'5',title:'การตรวจสอบทรัพย์สินที่นำออกนอกพื้นที่',sub:'Take Out Asset — Take Out Form ตรวจสอบ',steps:[{type:'process',text:'ยื่น Take Out Form'},{type:'decision',text:'D1: เอกสารถูกต้อง?'},{type:'yes',text:'ถูกต้อง → ลงชื่อ อนุญาต'},{type:'no',text:'ไม่ถูกต้อง → ระงับ แจ้ง Control'}],content:'<div style="padding:20px;"><h2 style="color:#001a4d;">5. การตรวจสอบทรัพย์สินที่นำออก</h2><p style="margin-top:10px;line-height:1.8;color:#445;">ยื่น Take Out Form ตรวจสอบรายการ Asset No. ผู้อนุมัติ วัน-เวลา</p></div>'},
+  {num:'6',title:'การเชิญธงชาติ',sub:'National Flag Ceremony — 08:00 เชิญขึ้น / 18:00 เชิญลง',steps:[{type:'process',text:'08:00 น. เชิญธงชาติขึ้นสู่ยอดเสา'},{type:'process',text:'18:00 น. เชิญธงชาติลง'},{type:'decision',text:'สภาพธงปกติ?'},{type:'yes',text:'ปกติ → เชิญตามกำหนด'},{type:'no',text:'ชำรุด → แจ้ง Control'}],content:'<div style="padding:20px;"><h2 style="color:#001a4d;">6. การเชิญธงชาติ</h2><p style="margin-top:10px;line-height:1.8;color:#445;">เชิญธงขึ้น 08:00 น. เชิญลง 18:00 น. ตรวจสอบสภาพธงและอุปกรณ์</p></div>'},
+  {num:'7',title:'การปฏิบัติหน้าที่บริหารจัดการเหตุฉุกเฉิน',sub:'Emergency Incident Management',steps:[{type:'process',text:'Control แจ้งเหตุฉุกเฉิน'},{type:'process',text:'ปิด Main Gate 1'},{type:'process',text:'อพยพบุคลากรไปจุดรวมพล'},{type:'process',text:'Control ยืนยัน → กลับสู่ปกติ'}],content:'<div style="padding:20px;"><h2 style="color:#001a4d;">7. การบริหารจัดการเหตุฉุกเฉิน</h2><p style="margin-top:10px;line-height:1.8;color:#445;">รับแจ้ง → ปิดประตู → อพยพ → ปฏิบัติตาม Control เคร่งครัด</p></div>'},
+  {num:'8',title:'งานอื่นๆ ที่ได้รับมอบหมาย',sub:'Additional Duties — การจราจร ทรัพย์สิน ป้ายความปลอดภัย',steps:[{type:'process',text:'อำนวยความสะดวกการจราจร'},{type:'process',text:'ดูแลทรัพย์สิน'},{type:'process',text:'ตรวจสอบป้ายจราจรและป้ายเตือน'}],content:'<div style="padding:20px;"><h2 style="color:#001a4d;">8. งานอื่นๆ ที่ได้รับมอบหมาย</h2><p style="margin-top:10px;line-height:1.8;color:#445;">อำนวยการจราจร ดูแลทรัพย์สิน ตรวจป้ายจราจรและป้ายความปลอดภัย</p></div>'}
+];
+
+var DEFAULT_QUIZ_BANK = [
+  {topic:0,q:'ประเภทบัตรที่ต้องแสดงเพื่อเข้าพื้นที่บริษัทได้แก่?',opts:['บัตรพนักงาน บัตรคู่สัญญา บัตรผู้รับเหมา บัตรอนุญาต','บัตรประชาชนเพียงอย่างเดียว','บัตรธนาคาร','พาสปอร์ต'],ans:0},
+  {topic:0,q:'เมื่อบุคคลไม่มีบัตร รปภ. ควรทำอะไรก่อน?',opts:['อนุญาตเข้า','สกัดสอบถามข้อมูล','โทรตำรวจ','ไม่ทำอะไร'],ans:1},
+  {topic:1,q:'ผู้มาติดต่อต้องปฏิบัติขั้นตอนแรกอย่างไร?',opts:['เดินเข้าหน่วยงาน','แสดงบัตรที่ Main Gate 1','โทรแจ้งล่วงหน้า','ลงทะเบียนออนไลน์'],ans:1},
+  {topic:2,q:'เอกสารที่ต้องยื่นก่อนใช้ Visitor Parking คือ?',opts:['บัตรประชาชน','Visitor Parking Request','ใบขับขี่','หนังสือเดินทาง'],ans:1},
+  {topic:3,q:'บัตรอนุญาตจอดรถต้องติดไว้ที่ใด?',opts:['ในกระเป๋า','บริเวณหน้ารถมองเห็นชัดเจน','แผงหน้าปัด','กระจกหลัง'],ans:1},
+  {topic:4,q:'Take Out Form ใช้เพื่ออะไร?',opts:['ลางาน','เอกสารอนุญาตนำทรัพย์สินออก','สมัครงาน','ขอจอดรถ'],ans:1},
+  {topic:5,q:'เชิญธงชาติขึ้นเวลาใด?',opts:['06:00','08:00','12:00','09:00'],ans:1},
+  {topic:6,q:'เหตุฉุกเฉิน ให้ความสำคัญกับสิ่งใดก่อน?',opts:['ทรัพย์สิน','ความปลอดภัยของชีวิต','การบันทึก','การปิดประตู'],ans:1},
+  {topic:7,q:'พบทรัพย์สินตกค้าง รปภ. ควรทำอย่างไร?',opts:['เก็บเอง','แจ้ง Control บันทึก ดำเนินการตามระเบียบ','ทิ้งไว้','ส่งผู้มาติดต่อ'],ans:1}
+];
+
+var DEFAULT_USERS = [
+  {id:'guard001',name:'สมชาย ใจดี',position:'หัวหน้าชุดรักษาความปลอดภัย',pass:'pass123',role:'guard',enabled:true,pwHistory:[]},
+  {id:'guard002',name:'วิภา สุขใจ',position:'เจ้าหน้าที่รักษาความปลอดภัย',pass:'pass123',role:'guard',enabled:true,pwHistory:[]},
+  {id:'guard003',name:'มานะ ทำดี',position:'เจ้าหน้าที่รักษาความปลอดภัย',pass:'pass123',role:'guard',enabled:true,pwHistory:[]},
+  {id:'guard004',name:'ลดาวัลย์ สว่าง',position:'เจ้าหน้าที่รักษาความปลอดภัย',pass:'pass123',role:'guard',enabled:false,pwHistory:[]}
+];
+
+var DEFAULT_ADMIN = {id:'admin',name:'Administrator',pass:'admin123',role:'admin',pwHistory:[]};
+
+var DEFAULT_COMPANY = {
+  name:'Western Digital Storage Technologies (Thailand) Ltd.',
+  dept:'Security Department — Main Gate 1',
+  addr:'700/1 Moo 1 Nong Prue, Bang Lamung, Chonburi 20150',
+  logo:'WD'
+};
+
+// ============================================================
+// GLOBAL STATE
+// ============================================================
+var db, auth;
+var regs = [], qb = [], allUsers = [], adminData = {}, companyData = {};
+var notifications = [], quizScores = {}, wiRead = {};
+var cu = null, cr = null, cwi = -1, cvu = null;
+var cqt = -1, cqq = [], cqi = 0, cqa = [];
+var qtimer = null, qsec = 15;
+var pdi = null, opwr = null, rpwu = null;
+var eri = -1, msteps = [], dss = -1;
+var MAX_REGS = 17;
+var unsubRegs = null, unsubCompany = null, unsubNotifs = null, unsubUserData = null;
+var fbReady = false;
+
+// ============================================================
+// HELPERS
+// ============================================================
+function gid(id){ return document.getElementById(id); }
+function fmt(d){ var dt = new Date(d); return dt.toLocaleDateString('th-TH',{day:'2-digit',month:'2-digit',year:'numeric',hour:'2-digit',minute:'2-digit'}); }
+function today(){ return new Date().toISOString(); }
+function gi(n){ return n ? n.charAt(0).toUpperCase() : '?'; }
+function closeModal(id){ gid(id).classList.remove('open'); }
+function esc(s){ return (s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+function showPage(id){
+  document.querySelectorAll('.page').forEach(function(p){ p.style.display='none'; p.classList.remove('active'); });
+  var el = gid(id);
+  el.style.display = 'flex';
+  el.classList.add('active');
+}
+function showLoading(msg){ gid('loading-overlay').style.display='flex'; gid('loading-msg').textContent = msg||'กำลังโหลด...'; }
+function hideLoading(){ gid('loading-overlay').style.display='none'; }
+function checkPwStr(inp,bar,lbl){
+  var v=gid(inp).value,b=gid(bar),l=gid(lbl);
+  if(!v){b.className='pw-strength';b.style.width='0';l.textContent='';return;}
+  var s=v.length>=8&&(/[A-Z]/.test(v)&&/[0-9]/.test(v)||/[^A-Za-z0-9]/.test(v));
+  var m=!s&&v.length>=6&&(/[A-Z]/.test(v)||/[0-9]/.test(v));
+  if(s){b.className='pw-strength strong';l.className='pw-sl strong';l.textContent='แข็งแกร่ง';}
+  else if(m){b.className='pw-strength medium';l.className='pw-sl medium';l.textContent='ปานกลาง';}
+  else{b.className='pw-strength weak';l.className='pw-sl weak';l.textContent='อ่อนแอ';}
+}
+
+// ============================================================
+// FIREBASE INIT
+// ============================================================
+function initFirebase(){
+  showLoading('กำลังเชื่อมต่อ Firebase...');
+  try {
+    firebase.initializeApp(FIREBASE_CONFIG);
+    db = firebase.firestore();
+    auth = firebase.auth();
+    db.enablePersistence({ synchronizeTabs: true }).catch(function(){});
+    gid('loading-msg').textContent = 'กำลังตรวจสอบระบบ...';
+    seedInitialData().then(function(){
+      hideLoading();
+      showPage('page-login');
+      fbReady = true;
+    });
+  } catch(e) {
+    console.error('Firebase init failed:', e);
+    gid('loading-msg').textContent = 'เชื่อมต่อไม่ได้ — กรุณาตั้งค่า Firebase Config';
+    setTimeout(function(){
+      hideLoading();
+      useOfflineMode();
+    }, 2000);
+  }
+}
+
+// OFFLINE FALLBACK (localStorage) — for demo/testing without Firebase
+function useOfflineMode(){
+  console.warn('Running in OFFLINE mode (localStorage)');
+  fbReady = false;
+  var saved = localStorage.getItem('wd_portal_offline');
+  if(saved){ try{ var d=JSON.parse(saved); regs=d.regs||DEFAULT_REGULATIONS; qb=d.qb||DEFAULT_QUIZ_BANK; allUsers=d.users||DEFAULT_USERS; adminData=d.admin||DEFAULT_ADMIN; companyData=d.company||DEFAULT_COMPANY; notifications=d.notifications||[]; quizScores=d.quizScores||{}; wiRead=d.wiRead||{}; }catch(e){ resetToDefaults(); } }
+  else { resetToDefaults(); }
+  showPage('page-login');
+}
+function resetToDefaults(){ regs=JSON.parse(JSON.stringify(DEFAULT_REGULATIONS)); qb=JSON.parse(JSON.stringify(DEFAULT_QUIZ_BANK)); allUsers=JSON.parse(JSON.stringify(DEFAULT_USERS)); adminData=JSON.parse(JSON.stringify(DEFAULT_ADMIN)); companyData=JSON.parse(JSON.stringify(DEFAULT_COMPANY)); notifications=[]; quizScores={}; wiRead={}; }
+function saveOffline(){ if(fbReady)return; try{ localStorage.setItem('wd_portal_offline',JSON.stringify({regs:regs,qb:qb,users:allUsers,admin:adminData,company:companyData,notifications:notifications,quizScores:quizScores,wiRead:wiRead})); }catch(e){} }
+
+// ============================================================
+// SEED INITIAL DATA (runs once on first deploy)
+// ============================================================
+async function seedInitialData(){
+  try {
+    // Check if already seeded
+    var regDoc = await db.collection('config').doc('regulations').get();
+    if(!regDoc.exists){
+      await db.collection('config').doc('regulations').set({ data: DEFAULT_REGULATIONS, quizBank: DEFAULT_QUIZ_BANK });
+    } else {
+      regs = regDoc.data().data || DEFAULT_REGULATIONS;
+      qb = regDoc.data().quizBank || DEFAULT_QUIZ_BANK;
+    }
+
+    var coDoc = await db.collection('config').doc('company').get();
+    if(!coDoc.exists){
+      await db.collection('config').doc('company').set(DEFAULT_COMPANY);
+      companyData = DEFAULT_COMPANY;
+    } else {
+      companyData = coDoc.data();
+    }
+
+    var adminDoc = await db.collection('users').doc('admin').get();
+    if(!adminDoc.exists){
+      await db.collection('users').doc('admin').set(DEFAULT_ADMIN);
+      adminData = DEFAULT_ADMIN;
+    } else {
+      adminData = adminDoc.data();
+    }
+
+    // Seed default guard users
+    for(var i=0;i<DEFAULT_USERS.length;i++){
+      var u = DEFAULT_USERS[i];
+      var uDoc = await db.collection('users').doc(u.id).get();
+      if(!uDoc.exists){ await db.collection('users').doc(u.id).set(u); }
+    }
+
+    // Load all users
+    await reloadUsers();
+
+    // Load scores/wiRead for current user (loaded on login)
+  } catch(e) {
+    console.error('Seed error:', e);
+    resetToDefaults();
+  }
+}
+
+async function reloadUsers(){
+  try {
+    var snap = await db.collection('users').where('role','==','guard').get();
+    allUsers = [];
+    snap.forEach(function(doc){ allUsers.push(doc.data()); });
+  } catch(e) { allUsers = JSON.parse(JSON.stringify(DEFAULT_USERS)); }
+}
+
+// ============================================================
+// REAL-TIME LISTENERS
+// ============================================================
+function startRealtimeListeners(){
+  // Regulations + Quiz Bank
+  if(unsubRegs) unsubRegs();
+  unsubRegs = db.collection('config').doc('regulations').onSnapshot(function(doc){
+    if(doc.exists){
+      regs = doc.data().data || [];
+      qb = doc.data().quizBank || [];
+      if(cr === 'guard'){ renderWIList(); if(gid('guard-wi-total-count')) gid('guard-wi-total-count').textContent=regs.length; }
+      if(cr === 'admin'){ renderRegPage(); updateRegCountBar(); }
+    }
+  });
+
+  // Company Info
+  if(unsubCompany) unsubCompany();
+  unsubCompany = db.collection('config').doc('company').onSnapshot(function(doc){
+    if(doc.exists){
+      companyData = doc.data();
+      if(cr === 'guard') renderGuardCo();
+      if(cr === 'admin'){
+        gid('cp-name').value = companyData.name||'';
+        gid('cp-dept').value = companyData.dept||'';
+        gid('cp-addr').value = companyData.addr||'';
+        gid('cp-logo').value = companyData.logo||'';
+        updateCoPrev();
+      }
+    }
+  });
+
+  // Notifications
+  if(unsubNotifs) unsubNotifs();
+  unsubNotifs = db.collection('notifications').orderBy('date','desc').limit(50).onSnapshot(function(snap){
+    notifications = [];
+    snap.forEach(function(doc){ notifications.push(Object.assign({_id:doc.id},doc.data())); });
+    upNB();
+    if(cr === 'admin'){ renderAdminDash(); }
+  });
+}
+
+function startUserDataListener(uid){
+  if(unsubUserData) unsubUserData();
+  unsubUserData = db.collection('users').doc(uid).onSnapshot(function(doc){
+    if(doc.exists){
+      var data = doc.data();
+      // Check if access was revoked mid-session
+      if(data.enabled === false && cr === 'guard'){
+        alert('สิทธิ์การเข้าใช้งานของคุณถูกระงับ กรุณาติดต่อ Admin');
+        doLogout();
+        return;
+      }
+      wiRead[uid] = data.wiRead || {};
+      quizScores[uid] = data.quizScores || {};
+      if(cr === 'guard'){ renderGuardHome(); }
+    }
+  });
+}
+
+function stopAllListeners(){
+  if(unsubRegs){ unsubRegs(); unsubRegs=null; }
+  if(unsubCompany){ unsubCompany(); unsubCompany=null; }
+  if(unsubNotifs){ unsubNotifs(); unsubNotifs=null; }
+  if(unsubUserData){ unsubUserData(); unsubUserData=null; }
+}
+
+// ============================================================
+// LOGIN / LOGOUT
+// ============================================================
+async function doLogin(){
+  var uid = gid('login-user').value.trim().toLowerCase();
+  var pass = gid('login-pass').value;
+  var errEl = gid('login-error');
+  var statEl = gid('login-status');
+  errEl.style.display='none';
+  statEl.style.display='none';
+  if(!uid||!pass){ errEl.textContent='กรุณากรอกข้อมูลให้ครบ'; errEl.style.display='block'; return; }
+  gid('btn-login').disabled=true;
+  gid('btn-login').textContent='กำลังตรวจสอบ...';
+
+  if(!fbReady){
+    // Offline mode
+    if(uid==='admin'&&pass===adminData.pass){ cu=adminData; cr='admin'; proceedAdminLogin(); return; }
+    var uf=allUsers.find(function(x){return x.id===uid&&x.pass===pass;});
+    if(uf){ if(!uf.enabled){errEl.textContent='บัญชีถูกระงับ กรุณาติดต่อ Admin';errEl.style.display='block';resetLoginBtn();return;} cu=uf; cr='guard'; proceedGuardLogin(); return; }
+    errEl.textContent='รหัสพนักงานหรือรหัสผ่านไม่ถูกต้อง'; errEl.style.display='block'; resetLoginBtn(); return;
+  }
+
+  try {
+    // Admin login
+    if(uid === 'admin'){
+      var adDoc = await db.collection('users').doc('admin').get();
+      if(!adDoc.exists){ errEl.textContent='ไม่พบบัญชี Admin'; errEl.style.display='block'; resetLoginBtn(); return; }
+      var adData = adDoc.data();
+      if(adData.pass !== pass){ errEl.textContent='รหัสพนักงานหรือรหัสผ่านไม่ถูกต้อง'; errEl.style.display='block'; resetLoginBtn(); return; }
+      adminData = adData;
+      cu = adData;
+      cr = 'admin';
+      proceedAdminLogin();
+      return;
+    }
+
+    // Guard login
+    var uDoc = await db.collection('users').doc(uid).get();
+    if(!uDoc.exists){ errEl.textContent='ไม่พบบัญชีผู้ใช้นี้'; errEl.style.display='block'; resetLoginBtn(); return; }
+    var uData = uDoc.data();
+    if(uData.pass !== pass){ errEl.textContent='รหัสพนักงานหรือรหัสผ่านไม่ถูกต้อง'; errEl.style.display='block'; resetLoginBtn(); return; }
+    if(!uData.enabled){ errEl.textContent='บัญชีถูกระงับสิทธิ์ กรุณาติดต่อ Admin'; errEl.style.display='block'; resetLoginBtn(); return; }
+    wiRead[uid] = uData.wiRead || {};
+    quizScores[uid] = uData.quizScores || {};
+    cu = uData;
+    cr = 'guard';
+    proceedGuardLogin();
+  } catch(e) {
+    errEl.textContent='เกิดข้อผิดพลาด: '+e.message; errEl.style.display='block'; resetLoginBtn();
+  }
+}
+
+function resetLoginBtn(){ gid('btn-login').disabled=false; gid('btn-login').textContent='เข้าสู่ระบบ'; }
+
+function proceedAdminLogin(){
+  showPage('page-admin');
+  startRealtimeListeners();
+  adminNav('dashboard');
+  upNB();
+  updateStatusBar();
+  resetLoginBtn();
+}
+
+async function proceedGuardLogin(){
+  gid('guard-sidebar-name').textContent = cu.name;
+  gid('guard-fullname').textContent = cu.name;
+  gid('guard-av-letter').textContent = gi(cu.name);
+  gid('guard-welcome-msg').textContent = 'ยินดีต้อนรับ คุณ' + cu.name;
+  showPage('page-guard');
+  startRealtimeListeners();
+  startUserDataListener(cu.id);
+  guardNav('home');
+  resetLoginBtn();
+}
+
+function doLogout(){
+  stopAllListeners();
+  cu = null; cr = null; cwi = -1; cvu = null;
+  cqt = -1; cqq = []; cqi = 0; cqa = [];
+  if(qtimer) clearInterval(qtimer);
+  gid('login-user').value=''; gid('login-pass').value='';
+  gid('login-error').style.display='none';
+  gid('login-status').style.display='none';
+  showPage('page-login');
+}
+
+// ============================================================
+// NAVIGATION
+// ============================================================
+function adminNav(page){
+  document.querySelectorAll('#page-admin .admin-sub').forEach(function(el){ el.style.display='none'; });
+  document.querySelectorAll('#admin-sidebar .nav-item').forEach(function(el){ el.classList.remove('active'); });
+  var el = gid('admin-page-'+page);
+  if(el) el.style.display='block';
+  document.querySelectorAll('#admin-sidebar .nav-item').forEach(function(el){
+    if(el.getAttribute('onclick')&&el.getAttribute('onclick').indexOf("'"+page+"'")>=0) el.classList.add('active');
+  });
+  closeSidebar();
+  if(page==='dashboard') renderAdminDash();
+  else if(page==='users'){ reloadUsers().then(renderUserTable); }
+  else if(page==='access'){ reloadUsers().then(renderAccessTable); }
+  else if(page==='passwords'){ reloadUsers().then(renderPwTable); }
+  else if(page==='notifications') renderNotifList();
+  else if(page==='reports'){ reloadUsers().then(renderReportTable); }
+  else if(page==='regulations') renderRegPage();
+  else if(page==='company'){
+    gid('cp-name').value=companyData.name||''; gid('cp-dept').value=companyData.dept||'';
+    gid('cp-addr').value=companyData.addr||''; gid('cp-logo').value=companyData.logo||'';
+    updateCoPrev();
+  }
+}
+
+function guardNav(page){
+  document.querySelectorAll('#page-guard .guard-sub').forEach(function(el){ el.style.display='none'; });
+  document.querySelectorAll('#guard-sidebar .nav-item').forEach(function(el){ el.classList.remove('active'); });
+  var el = gid('guard-page-'+page);
+  if(el) el.style.display='block';
+  document.querySelectorAll('#guard-sidebar .nav-item').forEach(function(el){
+    if(el.getAttribute('onclick')&&el.getAttribute('onclick').indexOf("'"+page+"'")>=0) el.classList.add('active');
+  });
+  closeSidebar();
+  if(page==='home') renderGuardHome();
+  else if(page==='wi') renderWIList();
+  else if(page==='quiz') renderQuizMenu();
+  else if(page==='scores') renderGuardScores();
+  else if(page==='company') renderGuardCo();
+}
+
+function toggleSidebar(){
+  var sb = cr==='admin'?gid('admin-sidebar'):gid('guard-sidebar');
+  var ov = gid('sidebar-overlay');
+  if(sb){ sb.classList.toggle('mobile-open'); }
+  if(ov){ ov.classList.toggle('active'); }
+}
+function closeSidebar(){
+  var sb1=gid('admin-sidebar'),sb2=gid('guard-sidebar'),ov=gid('sidebar-overlay');
+  if(sb1) sb1.classList.remove('mobile-open');
+  if(sb2) sb2.classList.remove('mobile-open');
+  if(ov) ov.classList.remove('active');
+}
+
+// ============================================================
+// FIRESTORE HELPERS
+// ============================================================
+async function fsSet(col, docId, data){
+  if(fbReady){ await db.collection(col).doc(docId).set(data); }
+  else { saveOffline(); }
+}
+async function fsUpdate(col, docId, data){
+  if(fbReady){ await db.collection(col).doc(docId).update(data); }
+  else { saveOffline(); }
+}
+async function fsAdd(col, data){
+  if(fbReady){ return await db.collection(col).add(data); }
+  else { notifications.push(data); saveOffline(); return {id:'local-'+Date.now()}; }
+}
+async function fsDelete(col, docId){
+  if(fbReady){ await db.collection(col).doc(docId).delete(); }
+  else { saveOffline(); }
+}
+
+// ============================================================
+// STATUS BAR
+// ============================================================
+function updateStatusBar(){
+  var el = gid('storage-status-bar');
+  if(!el) return;
+  var mode = fbReady ? '🟢 Firebase Online — Real-time Sync' : '🟡 Offline Mode (localStorage)';
+  el.innerHTML = mode + ' | ระเบียบ: ' + regs.length + ' | ผู้ใช้: ' + allUsers.length + ' คน';
+}
+
+// ============================================================
+// ADMIN DASHBOARD
+// ============================================================
+function renderAdminDash(){
+  updateStatusBar();
+  var tot = allUsers.length, qp = 0, wd = 0;
+  allUsers.forEach(function(u){
+    var sc = quizScores[u.id]||{};
+    regs.forEach(function(t,i){ if(sc[i]&&sc[i].some(function(s){return s.pass;})) qp++; });
+    var wr = wiRead[u.id]||{};
+    regs.forEach(function(t,i){ if(wr[i]) wd++; });
+  });
+  var wt = allUsers.length * regs.length;
+  var un = notifications.filter(function(n){return !n.read;}).length;
+  gid('stats-grid').innerHTML = '<div class="stat-card"><div class="stat-icon si-blue">👥</div><div><div class="stat-val">'+tot+'</div><div class="stat-lbl">ผู้ใช้ทั้งหมด</div></div></div><div class="stat-card"><div class="stat-icon si-green">✅</div><div><div class="stat-val">'+qp+'</div><div class="stat-lbl">ผ่านการทดสอบ</div></div></div><div class="stat-card"><div class="stat-icon si-orange">📚</div><div><div class="stat-val">'+wd+'/'+wt+'</div><div class="stat-lbl">อ่าน WI แล้ว</div></div></div><div class="stat-card"><div class="stat-icon si-purple">🔔</div><div><div class="stat-val">'+un+'</div><div class="stat-lbl">แจ้งเตือนใหม่</div></div></div>';
+  var wpH = '';
+  allUsers.forEach(function(u){
+    var wr=wiRead[u.id]||{},cnt=0;
+    regs.forEach(function(t,i){ if(wr[i]) cnt++; });
+    var pct = regs.length>0?Math.round(cnt/regs.length*100):0;
+    wpH += '<div style="margin-bottom:10px;"><div style="display:flex;justify-content:space-between;font-size:13px;margin-bottom:3px;"><span style="font-weight:600;">'+u.name+'</span><span style="color:#667;">'+cnt+'/'+regs.length+' ('+pct+'%)</span></div><div class="prog-bar"><div class="prog-fill'+(pct===100?' grn':'')+'" style="width:'+pct+'%;"></div></div></div>';
+  });
+  gid('wi-progress-list').innerHTML = wpH||'<div class="empty-state"><div class="empty-icon">📚</div><p>ยังไม่มีข้อมูล</p></div>';
+  var rsH = '';
+  allUsers.forEach(function(u){
+    var sc=quizScores[u.id]||{};
+    regs.forEach(function(t,i){
+      if(sc[i]&&sc[i].length>0){ var l=sc[i][sc[i].length-1]; rsH+='<div class="score-row"><div class="score-num '+(l.pass?'pass':'fail')+'">'+l.score+'%</div><div class="score-info"><div class="score-title">'+u.name+' — '+t.title.substring(0,20)+'...</div><div class="score-date">'+fmt(l.date)+'</div></div><span class="badge '+(l.pass?'bg':'br')+'">'+(l.pass?'ผ่าน':'ไม่ผ่าน')+'</span></div>'; }
+    });
+  });
+  gid('recent-scores-list').innerHTML = rsH||'<div class="empty-state"><div class="empty-icon">🏆</div><p>ยังไม่มีผล</p></div>';
+  var dnH = '';
+  notifications.slice(0,5).forEach(function(n){
+    dnH += '<div class="notif-item'+(n.read?'':' unread')+'"><div class="notif-icon">'+(n.read?'🔔':'🆕')+'</div><div class="notif-body"><div class="notif-title">'+n.title+'</div><div class="notif-msg">'+n.msg+'</div><div class="notif-time">'+fmt(n.date)+'</div></div></div>';
+  });
+  gid('dash-notif-list').innerHTML = dnH||'<div class="empty-state"><div class="empty-icon">🔔</div><p>ไม่มีการแจ้งเตือน</p></div>';
+}
+
+// ============================================================
+// USER MANAGEMENT
+// ============================================================
+function renderUserTable(){
+  var q = (gid('user-search')||{}).value||'', html = '';
+  var list = allUsers.filter(function(u){ return !q||u.name.indexOf(q)>=0||u.id.indexOf(q)>=0; });
+  list.forEach(function(u){
+    var wr=wiRead[u.id]||{},cnt=0;
+    regs.forEach(function(t,i){ if(wr[i]) cnt++; });
+    var pct = regs.length>0?Math.round(cnt/regs.length*100):0;
+    var sc=quizScores[u.id]||{},ls='—',psd=false;
+    regs.forEach(function(t,i){ if(sc[i]&&sc[i].length>0){ var l=sc[i][sc[i].length-1]; ls=l.score+'%'; psd=l.pass; } });
+    html += '<tr><td><span class="badge bb">'+u.id+'</span></td><td><strong>'+u.name+'</strong></td><td>'+u.position+'</td><td>'+(u.enabled?'<span class="badge-enabled badge">✅ เปิดสิทธิ์</span>':'<span class="badge-disabled badge">🚫 ปิดสิทธิ์</span>')+'</td><td><div style="width:100px;"><div style="font-size:11px;margin-bottom:2px;">'+pct+'%</div><div class="prog-bar"><div class="prog-fill" style="width:'+pct+'%;"></div></div></div></td><td><span class="badge '+(ls!=='—'?(psd?'bg':'br'):'bgr')+'">'+ls+'</span></td><td style="white-space:nowrap;"><button class="btn btn-o btn-sm" onclick="viewUD(\''+u.id+'\')">👤</button> <button class="btn btn-sm" style="background:#e3f0ff;color:#0055aa;" onclick="openResetPwModal(\''+u.id+'\')">🔑</button> <button class="btn btn-d btn-sm" onclick="openDeleteModal(\''+u.id+'\')">🗑️</button></td></tr>';
+  });
+  gid('user-table-body').innerHTML = html||'<tr><td colspan="7" style="text-align:center;color:#888;padding:20px;">ไม่พบข้อมูล</td></tr>';
+}
+
+function openAddUserModal(){
+  gid('modal-user-title').textContent='เพิ่มผู้ใช้ใหม่';
+  ['mu-id','mu-name','mu-position','mu-pass'].forEach(function(id){ gid(id).value=''; });
+  gid('mu-pw-strength').style.width='0'; gid('mu-pw-label').textContent='';
+  gid('mu-enabled').value='true';
+  gid('mu-error').style.display='none';
+  gid('modal-user').classList.add('open');
+}
+
+async function saveUser(){
+  var id=gid('mu-id').value.trim().toLowerCase(),name=gid('mu-name').value.trim(),pos=gid('mu-position').value.trim(),pass=gid('mu-pass').value,en=gid('mu-enabled').value==='true';
+  var e=gid('mu-error'); e.style.display='none';
+  if(!id||!name||!pass){ e.textContent='กรุณากรอกข้อมูลให้ครบ'; e.style.display='block'; return; }
+  if(allUsers.find(function(u){return u.id===id;})){ e.textContent='รหัสพนักงานนี้มีอยู่แล้ว'; e.style.display='block'; return; }
+  var nu={id:id,name:name,position:pos,pass:pass,role:'guard',enabled:en,pwHistory:[],wiRead:{},quizScores:{}};
+  try {
+    await fsSet('users',id,nu);
+    allUsers.push(nu);
+    closeModal('modal-user');
+    renderUserTable();
+    updateStatusBar();
+  } catch(err){ e.textContent='บันทึกไม่สำเร็จ: '+err.message; e.style.display='block'; }
+}
+
+function openDeleteModal(uid){
+  var u=allUsers.find(function(x){return x.id===uid;});
+  if(!u) return;
+  pdi=uid;
+  gid('delete-username').textContent=u.name+' ('+u.id+')';
+  gid('modal-confirm-delete').classList.add('open');
+}
+
+async function confirmDeleteUser(){
+  try {
+    await fsDelete('users',pdi);
+    allUsers = allUsers.filter(function(u){return u.id!==pdi;});
+    delete wiRead[pdi]; delete quizScores[pdi];
+    closeModal('modal-confirm-delete');
+    renderUserTable();
+    pdi=null;
+  } catch(e){ alert('ลบไม่สำเร็จ: '+e.message); }
+}
+
+// ============================================================
+// ACCESS CONTROL
+// ============================================================
+function renderAccessTable(){
+  var h='', dis=0;
+  allUsers.forEach(function(u){
+    if(!u.enabled) dis++;
+    h+='<tr><td><span class="badge bb">'+u.id+'</span></td><td><strong>'+u.name+'</strong></td><td style="color:#667;font-size:13px;">'+u.position+'</td><td>'+(u.enabled?'<span class="badge-enabled badge">✅ เปิดสิทธิ์</span>':'<span class="badge-disabled badge">🚫 ปิดสิทธิ์</span>')+'</td><td style="font-size:12px;color:#888;">'+(u.lastAccessChange?fmt(u.lastAccessChange):'—')+'</td><td><button class="btn btn-sm '+(u.enabled?'btn-toggle-off':'btn-toggle-on')+'" onclick="toggleAccess(\''+u.id+'\','+(u.enabled?'false':'true')+')">'+(u.enabled?'🚫 ปิดสิทธิ์':'✅ เปิดสิทธิ์')+'</button></td></tr>';
+  });
+  gid('access-table-body').innerHTML=h||'<tr><td colspan="6" style="text-align:center;color:#888;padding:20px;">ไม่มีผู้ใช้</td></tr>';
+  var db_el=gid('disabled-badge');
+  if(db_el){ if(dis>0){db_el.style.display='inline';db_el.textContent=dis;}else{db_el.style.display='none';} }
+}
+
+async function toggleAccess(uid, enable){
+  try {
+    var upd = {enabled:enable, lastAccessChange:today()};
+    await fsUpdate('users',uid,upd);
+    var u=allUsers.find(function(x){return x.id===uid;});
+    if(u){ u.enabled=enable; u.lastAccessChange=upd.lastAccessChange; }
+    renderAccessTable();
+    await addNotif('access_change',(enable?'เปิด':'ปิด')+'สิทธิ์การเข้าใช้งาน','ผู้ใช้: '+uid+' — โดย Admin');
+  } catch(e){ alert('ไม่สามารถเปลี่ยนสิทธิ์ได้: '+e.message); }
+}
+
+async function setAllAccess(enable){
+  if(!confirm((enable?'เปิด':'ปิด')+'สิทธิ์ผู้ใช้ทั้งหมด?')) return;
+  for(var i=0;i<allUsers.length;i++){
+    await toggleAccess(allUsers[i].id, enable);
+  }
+}
+
+// ============================================================
+// PASSWORDS
+// ============================================================
+function renderPwTable(){
+  var h='';
+  allUsers.forEach(function(u){
+    var hist=u.pwHistory||[],lc=hist.length>0?fmt(hist[hist.length-1].date):'ยังไม่เคยเปลี่ยน';
+    h+='<tr><td><span class="badge bb">'+u.id+'</span></td><td><strong>'+u.name+'</strong></td><td>'+u.position+'</td><td>'+lc+'</td><td>'+hist.length+' ครั้ง</td><td><button class="btn btn-sm btn-p" onclick="openResetPwModal(\''+u.id+'\')">🔑 รีเซ็ต</button></td></tr>';
+  });
+  gid('pw-table-body').innerHTML=h||'<tr><td colspan="6" style="text-align:center;color:#888;padding:20px;">ไม่มีผู้ใช้</td></tr>';
+}
+
+function openResetPwModal(uid){
+  var u=allUsers.find(function(x){return x.id===uid;});
+  if(!u) return;
+  rpwu=uid;
+  gid('reset-pw-username').textContent=u.name+' ('+u.id+')';
+  ['reset-pw-new','reset-pw-confirm'].forEach(function(id){gid(id).value='';});
+  gid('reset-pw-strength').style.width='0'; gid('reset-pw-label').textContent='';
+  gid('reset-pw-error').style.display='none';
+  var h=u.pwHistory||[];
+  var hH='<div style="font-size:12px;font-weight:700;color:#445;margin-bottom:6px;">ประวัติการเปลี่ยนรหัสผ่าน</div>';
+  if(h.length===0) hH+='<div style="font-size:12px;color:#888;">ยังไม่มีประวัติ</div>';
+  else h.slice(-3).reverse().forEach(function(x){ hH+='<div style="font-size:12px;padding:4px 8px;background:#f8faff;border-radius:6px;margin-bottom:4px;">'+fmt(x.date)+' — โดย: '+x.by+'</div>'; });
+  gid('reset-pw-hist').innerHTML=hH;
+  gid('modal-reset-pw').classList.add('open');
+}
+
+async function doResetPw(){
+  var uid=rpwu,np=gid('reset-pw-new').value,cp=gid('reset-pw-confirm').value;
+  var e=gid('reset-pw-error'); e.style.display='none';
+  if(!np){e.textContent='กรุณากรอกรหัสผ่านใหม่';e.style.display='block';return;}
+  if(np!==cp){e.textContent='รหัสผ่านยืนยันไม่ตรงกัน';e.style.display='block';return;}
+  if(np.length<4){e.textContent='รหัสผ่านต้องมีอย่างน้อย 4 ตัว';e.style.display='block';return;}
+  var u=allUsers.find(function(x){return x.id===uid;});
+  if(!u) return;
+  var newHist=(u.pwHistory||[]).concat({date:today(),by:'Admin'}).slice(-3);
+  try {
+    await fsUpdate('users',uid,{pass:np,pwHistory:newHist});
+    u.pass=np; u.pwHistory=newHist;
+    await addNotif('pw_reset','รหัสผ่านถูกรีเซ็ต','ผู้ใช้: '+u.name+' ('+u.id+') โดย Admin');
+    closeModal('modal-reset-pw');
+    renderPwTable();
+    alert('✓ รีเซ็ตรหัสผ่านสำเร็จ!');
+  } catch(err){e.textContent='บันทึกไม่สำเร็จ: '+err.message;e.style.display='block';}
+}
+
+function openOwnPwModal(role){ opwr=role; ['own-pw-old','own-pw-new','own-pw-confirm'].forEach(function(id){gid(id).value='';}); gid('own-pw-strength').style.width='0'; gid('own-pw-label').textContent=''; gid('own-pw-error').style.display='none'; gid('modal-own-pw').classList.add('open'); }
+
+async function doOwnPwChange(){
+  var op=gid('own-pw-old').value,np=gid('own-pw-new').value,cp=gid('own-pw-confirm').value;
+  var e=gid('own-pw-error'); e.style.display='none';
+  var tgt=opwr==='admin'?adminData:cu;
+  if(op!==tgt.pass){e.textContent='รหัสผ่านเดิมไม่ถูกต้อง';e.style.display='block';return;}
+  if(!np){e.textContent='กรุณากรอกรหัสผ่านใหม่';e.style.display='block';return;}
+  if(np!==cp){e.textContent='รหัสผ่านยืนยันไม่ตรงกัน';e.style.display='block';return;}
+  if(np.length<4){e.textContent='รหัสผ่านต้องมีอย่างน้อย 4 ตัว';e.style.display='block';return;}
+  var newHist=((tgt.pwHistory||[])).concat({date:today(),by:tgt.name||'User'}).slice(-3);
+  try {
+    await fsUpdate('users',tgt.id,{pass:np,pwHistory:newHist});
+    tgt.pass=np; tgt.pwHistory=newHist;
+    closeModal('modal-own-pw');
+    alert('✓ เปลี่ยนรหัสผ่านสำเร็จ!');
+  } catch(err){e.textContent='บันทึกไม่สำเร็จ: '+err.message;e.style.display='block';}
+}
+
+// ============================================================
+// NOTIFICATIONS
+// ============================================================
+async function addNotif(type,title,msg){
+  var n={type:type,title:title,msg:msg,date:today(),read:false};
+  try { await fsAdd('notifications',n); } catch(e){ notifications.unshift(n); upNB(); }
+}
+
+function renderNotifList(){
+  var h='';
+  notifications.forEach(function(n,i){
+    h+='<div class="notif-item'+(n.read?'':' unread')+'" onclick="readNotif(\''+n._id+'\')"><div class="notif-icon">'+(n.type==='quiz_complete'?'📝':n.type==='pw_reset'?'🔑':n.type==='access_change'?'🔐':'🔔')+'</div><div class="notif-body"><div class="notif-title">'+(n.read?'':'<span class="notif-dot"></span>')+n.title+'</div><div class="notif-msg">'+n.msg+'</div><div class="notif-time">'+fmt(n.date)+'</div></div></div>';
+  });
+  gid('notif-list-card').innerHTML=h||'<div class="empty-state"><div class="empty-icon">🔔</div><p>ไม่มีการแจ้งเตือน</p></div>';
+}
+
+async function readNotif(id){
+  try {
+    if(fbReady && id){ await db.collection('notifications').doc(id).update({read:true}); }
+    else { var n=notifications.find(function(x){return x._id===id;}); if(n)n.read=true; upNB(); renderNotifList(); }
+  } catch(e){ console.warn('readNotif error:',e); }
+}
+
+async function markAllRead(){
+  try {
+    if(fbReady){
+      var batch=db.batch();
+      notifications.filter(function(n){return !n.read;}).forEach(function(n){ if(n._id) batch.update(db.collection('notifications').doc(n._id),{read:true}); });
+      await batch.commit();
+    } else { notifications.forEach(function(n){n.read=true;}); upNB(); renderNotifList(); }
+  } catch(e){ console.warn('markAllRead error:',e); }
+}
+
+function upNB(){
+  var un=notifications.filter(function(n){return !n.read;}).length;
+  var b=gid('admin-notif-badge');
+  if(b){if(un>0){b.style.display='inline';b.textContent=un;}else b.style.display='none';}
+}
+
+// ============================================================
+// REPORTS
+// ============================================================
+function renderReportTable(){
+  var h='';
+  allUsers.forEach(function(u){
+    var sc=quizScores[u.id]||{};
+    regs.forEach(function(t,i){ if(sc[i]) sc[i].forEach(function(s){ h+='<tr><td>'+u.name+'</td><td>'+t.num+'. '+t.title.substring(0,26)+'</td><td>'+s.score+'%</td><td><span class="badge '+(s.pass?'bg':'br')+'">'+(s.pass?'ผ่าน':'ไม่ผ่าน')+'</span></td><td>'+s.attempt+'</td><td>'+fmt(s.date)+'</td></tr>'; }); });
+  });
+  gid('report-table-body').innerHTML=h||'<tr><td colspan="6" style="text-align:center;color:#888;padding:20px;">ยังไม่มีผล</td></tr>';
+}
+
+// ============================================================
+// COMPANY INFO
+// ============================================================
+function updateCoPrev(){
+  gid('cp-name-prev').textContent=gid('cp-name').value;
+  gid('cp-dept-prev').textContent=gid('cp-dept').value;
+  gid('cp-addr-prev').textContent=gid('cp-addr').value;
+  gid('cp-logo-prev').textContent=gid('cp-logo').value;
+}
+
+async function saveCoInfo(){
+  companyData={name:gid('cp-name').value,dept:gid('cp-dept').value,addr:gid('cp-addr').value,logo:gid('cp-logo').value};
+  try {
+    await fsSet('config','company',companyData);
+    var m=gid('cp-save-msg'); m.style.display='inline'; setTimeout(function(){m.style.display='none';},2500);
+  } catch(e){ alert('บันทึกไม่สำเร็จ: '+e.message); }
+}
+
+// ============================================================
+// REGULATIONS (Real-time)
+// ============================================================
+function updateRegCountBar(){
+  var c=regs.length;
+  gid('reg-count-display').textContent=c;
+  gid('reg-slots-left').textContent=(MAX_REGS-c)+' ช่องว่างเหลือ';
+  var b=gid('btn-add-reg');
+  if(b){b.disabled=c>=MAX_REGS;b.textContent=c>=MAX_REGS?'ครบ 17 ระเบียบแล้ว':'+ เพิ่มระเบียบใหม่';}
+}
+
+function renderRegPage(){
+  updateRegCountBar();
+  var h='';
+  var sTC={process:'background:#e3f0ff;color:#0055aa;',decision:'background:#fff3e0;color:#cc6600;',yes:'background:#e3fff0;color:#1a7a40;',no:'background:#ffe3e3;color:#cc0000;'};
+  var sTL={process:'ขั้นตอน',decision:'ตัดสินใจ',yes:'ผ่าน',no:'ไม่ผ่าน'};
+  regs.forEach(function(reg,idx){
+    var sh='';
+    (reg.steps||[]).forEach(function(s,si){ sh+='<div style="display:flex;align-items:center;gap:8px;padding:5px 8px;background:#f8faff;border-radius:7px;margin-bottom:4px;"><div class="step-num">'+(si+1)+'</div><span style="font-size:10px;font-weight:700;padding:2px 6px;border-radius:5px;'+sTC[s.type]+'">'+sTL[s.type]+'</span><div style="flex:1;font-size:12px;color:#334;">'+esc(s.text)+'</div></div>'; });
+    h+='<div class="reg-card"><div class="reg-card-head" onclick="toggleReg('+idx+')" id="reg-head-'+idx+'"><div class="reg-num-badge">'+reg.num+'</div><div style="flex:1;"><div class="reg-title">'+reg.title+'</div><div class="reg-sub">'+reg.sub+'</div></div><div class="reg-actions"><button class="btn btn-o btn-sm" onclick="event.stopPropagation();openEditReg('+idx+')" title="แก้ไข">✏️ แก้ไข</button>'+(idx>=8?'<button class="btn btn-d btn-sm" onclick="event.stopPropagation();deleteReg('+idx+')" style="margin-left:4px;">🗑️</button>':'')+'</div><div class="reg-chevron" id="reg-chev-'+idx+'">▼</div></div><div class="reg-body" id="reg-body-'+idx+'"><div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;"><div><div style="font-size:12px;font-weight:700;color:#667;margin-bottom:8px;">ขั้นตอน</div>'+sh+'</div><div><div style="font-size:12px;font-weight:700;color:#667;margin-bottom:8px;">เนื้อหาย่อ</div><div style="background:#f0f4fa;border-radius:9px;padding:10px;max-height:180px;overflow-y:auto;font-size:12px;color:#445;border:1px solid #e0e6f0;">'+(reg.content?reg.content.replace(/<[^>]+>/g,' ').trim().substring(0,250)+'...':'<span style="color:#aaa;font-style:italic;">ยังไม่มีเนื้อหา</span>')+'</div></div></div></div></div>';
+  });
+  gid('regulations-list').innerHTML=h;
+}
+
+function toggleReg(idx){
+  var b=gid('reg-body-'+idx),c=gid('reg-chev-'+idx);
+  if(b.classList.contains('open')){b.classList.remove('open');c.classList.remove('open');}
+  else{b.classList.add('open');c.classList.add('open');}
+}
+
+function renderMSteps(){
+  var h='';
+  var sTC={process:'#0055aa',decision:'#cc6600',yes:'#1a7a40',no:'#cc0000'};
+  msteps.forEach(function(s,i){
+    h+='<div class="step-row"><div class="step-num">'+(i+1)+'</div><select style="border:none;background:transparent;font-family:Sarabun,sans-serif;font-size:12px;font-weight:700;cursor:pointer;color:'+sTC[s.type]+'" onchange="msteps['+i+'].type=this.value"><option value="process"'+(s.type==='process'?' selected':'')+'>ขั้นตอน</option><option value="decision"'+(s.type==='decision'?' selected':'')+'>ตัดสินใจ</option><option value="yes"'+(s.type==='yes'?' selected':'')+'>ผ่าน</option><option value="no"'+(s.type==='no'?' selected':'')+'>ไม่ผ่าน</option></select><div style="flex:1;"><input type="text" value="'+esc(s.text)+'" onchange="msteps['+i+'].text=this.value" style="width:100%;border:none;background:transparent;font-family:Sarabun,sans-serif;font-size:13px;color:#334;"></div><button class="step-del" onclick="msteps.splice('+i+',1);renderMSteps()">✕</button></div>';
+  });
+  gid('modal-steps-list').innerHTML=h;
+}
+
+function addModalStep(){
+  var t=gid('new-step-type').value,txt=gid('new-step-text').value.trim();
+  if(!txt) return;
+  msteps.push({type:t,text:txt});
+  gid('new-step-text').value='';
+  renderMSteps();
+}
+
+function openAddRegModal(){
+  if(regs.length>=MAX_REGS){alert('ถึงจำนวนสูงสุด 17 ระเบียบแล้ว');return;}
+  eri=-1; msteps=[];
+  gid('modal-reg-title').textContent='➕ เพิ่มระเบียบใหม่ (ที่ '+(regs.length+1)+')';
+  ['reg-num-input','reg-title-input','reg-sub-input','reg-content-input'].forEach(function(id){gid(id).value='';});
+  gid('btn-save-reg').textContent='💾 บันทึกระเบียบ';
+  gid('modal-reg-error').style.display='none';
+  renderMSteps();
+  gid('modal-add-reg').classList.add('open');
+}
+
+function openEditReg(idx){
+  eri=idx;
+  var r=regs[idx];
+  msteps=(r.steps||[]).map(function(s){return{type:s.type,text:s.text};});
+  gid('modal-reg-title').textContent='✏️ แก้ไขระเบียบ '+r.num;
+  gid('reg-num-input').value=r.num;
+  gid('reg-title-input').value=r.title;
+  gid('reg-sub-input').value=r.sub||'';
+  gid('reg-content-input').value=r.content||'';
+  gid('btn-save-reg').textContent='💾 บันทึกการแก้ไข';
+  gid('modal-reg-error').style.display='none';
+  renderMSteps();
+  gid('modal-add-reg').classList.add('open');
+}
+
+async function saveRegulation(){
+  var num=gid('reg-num-input').value.trim(),title=gid('reg-title-input').value.trim(),sub=gid('reg-sub-input').value.trim(),content=gid('reg-content-input').value.trim();
+  var e=gid('modal-reg-error'); e.style.display='none';
+  if(!num){e.textContent='กรุณากรอกหมายเลขระเบียบ';e.style.display='block';return;}
+  if(!title){e.textContent='กรุณากรอกชื่อระเบียบ';e.style.display='block';return;}
+  var dup=regs.findIndex(function(r,i){return r.num===num&&i!==eri;});
+  if(dup>=0){e.textContent='หมายเลขระเบียบ "'+num+'" มีอยู่แล้ว';e.style.display='block';return;}
+  var fc=content||'<div style="padding:20px;"><h2 style="color:#001a4d;">'+num+'. '+title+'</h2></div>';
+  var obj={num:num,title:title,sub:sub,steps:msteps.map(function(s){return{type:s.type,text:s.text};}),content:fc};
+  if(eri>=0){ regs[eri]=obj; }
+  else {
+    regs.push(obj);
+    var nti=regs.length-1;
+    qb.push({topic:nti,q:'[คำถาม] '+title+' เกี่ยวข้องกับอะไร?',opts:['เนื้อหาระเบียบ '+num,'ไม่ใช่ A','ไม่ใช่ B','ไม่ใช่ C'],ans:0});
+  }
+  try {
+    await fsSet('config','regulations',{data:regs,quizBank:qb});
+    closeModal('modal-add-reg');
+    renderRegPage();
+    updateRegCountBar();
+    var al=gid('reg-save-alert');
+    al.textContent=(eri>=0?'✓ แก้ไข':'✓ เพิ่ม')+'ระเบียบ "'+title+'" สำเร็จ! — Sync ไปยัง User ทันที';
+    al.style.display='block';
+    setTimeout(function(){al.style.display='none';},3500);
+  } catch(err){e.textContent='บันทึกไม่สำเร็จ: '+err.message;e.style.display='block';}
+}
+
+async function deleteReg(idx){
+  if(idx<8){alert('ไม่สามารถลบระเบียบหลัก 1–8 ได้');return;}
+  var r=regs[idx];
+  if(!confirm('ลบระเบียบ "'+r.num+'. '+r.title+'" ?')) return;
+  regs.splice(idx,1);
+  try {
+    await fsSet('config','regulations',{data:regs,quizBank:qb});
+    renderRegPage();
+    updateRegCountBar();
+  } catch(e){ alert('ลบไม่สำเร็จ: '+e.message); regs.splice(idx,0,r); }
+}
+
+async function saveAllRegs(){
+  try {
+    await fsSet('config','regulations',{data:regs,quizBank:qb});
+    var al=gid('reg-save-alert');
+    al.textContent='✓ บันทึก '+regs.length+' ระเบียบสำเร็จ — Sync Real-time แล้ว';
+    al.style.display='block';
+    setTimeout(function(){al.style.display='none';},3000);
+  } catch(e){ alert('บันทึกไม่สำเร็จ: '+e.message); }
+}
+
+// ============================================================
+// USER DETAIL
+// ============================================================
+async function viewUD(uid){
+  var u=allUsers.find(function(x){return x.id===uid;});
+  if(!u) return;
+  cvu=uid;
+  // Load user data
+  if(fbReady){
+    var uDoc = await db.collection('users').doc(uid).get();
+    if(uDoc.exists){ var ud=uDoc.data(); wiRead[uid]=ud.wiRead||{}; quizScores[uid]=ud.quizScores||{}; }
+  }
+  adminNav('user-detail');
+  gid('ud-breadcrumb').textContent=u.name;
+  gid('ud-header').innerHTML='<div class="detail-av">'+gi(u.name)+'</div><div style="flex:1;"><h2 style="font-size:20px;font-weight:800;">'+u.name+'</h2><p style="opacity:.75;font-size:14px;margin-top:3px;">'+u.position+' | '+u.id+'</p><p style="font-size:12px;margin-top:6px;">'+(u.enabled?'<span style="background:rgba(0,200,100,.2);color:#00ee77;padding:2px 10px;border-radius:8px;">✅ เปิดสิทธิ์</span>':'<span style="background:rgba(255,50,50,.2);color:#ff8888;padding:2px 10px;border-radius:8px;">🚫 ปิดสิทธิ์</span>')+'</p></div><button class="btn btn-sm" style="background:rgba(255,255,255,.15);color:#fff;border:1px solid rgba(255,255,255,.3);margin-left:auto;" onclick="openResetPwModal(\''+u.id+'\')">🔑 Reset Password</button>';
+  var wr=wiRead[uid]||{},wpH='';
+  regs.forEach(function(t,i){ wpH+='<div style="display:flex;align-items:center;gap:8px;margin-bottom:7px;padding:7px 10px;background:#f8faff;border-radius:8px;"><div class="wi-num" style="width:28px;height:28px;font-size:11px;">'+t.num+'</div><div style="flex:1;font-size:13px;">'+t.title.substring(0,32)+'</div>'+(wr[i]?'<span class="badge bg">✓</span>':'<span class="badge bgr">—</span>')+'</div>'; });
+  gid('ud-wi-progress').innerHTML=wpH;
+  var sc=quizScores[uid]||{},qH='';
+  regs.forEach(function(t,i){ if(sc[i]) sc[i].forEach(function(s){ qH+='<div class="score-row"><div class="score-num '+(s.pass?'pass':'fail')+'">'+s.score+'%</div><div class="score-info"><div class="score-title">'+t.num+'. '+t.title.substring(0,22)+'...</div><div class="score-date">ครั้งที่ '+s.attempt+' | '+fmt(s.date)+'</div></div><span class="badge '+(s.pass?'bg':'br')+'">'+(s.pass?'ผ่าน':'ไม่ผ่าน')+'</span></div>'; }); });
+  gid('ud-quiz-history').innerHTML=qH||'<div class="empty-state"><div class="empty-icon">📝</div><p>ยังไม่มีผล</p></div>';
+}
+
+// ============================================================
+// GUARD — WI READ
+// ============================================================
+function renderWIList(){
+  var uid=cu?cu.id:'',wr=wiRead[uid]||{},h='';
+  regs.forEach(function(t,i){
+    var done=wr[i];
+    h+='<div class="wi-card" onclick="openWI('+i+')"><div class="wi-card-header"><div class="wi-num">'+t.num+'</div><div style="flex:1;"><div class="wi-title">'+t.title+'</div><div class="wi-sub">'+t.sub+'</div></div><div>'+(done?'<span class="badge bg">✓ อ่านแล้ว</span>':'<span class="badge bgr">ยังไม่อ่าน</span>')+'</div></div><div class="wi-bar"><div class="wi-fill" style="width:'+(done?'100':'0')+'%;"></div></div></div>';
+  });
+  gid('wi-list-guard').innerHTML=h||'<div class="empty-state"><div class="empty-icon">📚</div><p>ยังไม่มีเนื้อหา</p></div>';
+}
+
+function openWI(idx){
+  cwi=idx;
+  var t=regs[idx];
+  gid('wi-read-breadcrumb').textContent=t.title.substring(0,28)+'...';
+  gid('wi-read-title').textContent=t.num+'. '+t.title;
+  gid('wi-read-content').innerHTML=t.content||'<div style="padding:20px;color:#445;">ยังไม่มีเนื้อหา</div>';
+  document.querySelectorAll('#page-guard .guard-sub').forEach(function(el){el.style.display='none';});
+  gid('guard-page-wi-read').style.display='block';
+}
+
+async function markWIRead(){
+  if(cwi<0||!cu) return;
+  var uid=cu.id;
+  if(!wiRead[uid]) wiRead[uid]={};
+  wiRead[uid][cwi]=true;
+  var btn=gid('btn-mark-read');
+  btn.textContent='⏳ กำลังบันทึก...'; btn.disabled=true;
+  try {
+    var upd={};
+    upd['wiRead.'+cwi]=true;
+    await fsUpdate('users',uid,upd);
+    btn.textContent='✅ บันทึกแล้ว!';
+    setTimeout(function(){btn.textContent='✓ อ่านแล้ว — บันทึกความคืบหน้า';btn.disabled=false;},2000);
+  } catch(e){
+    btn.textContent='✓ อ่านแล้ว — บันทึกความคืบหน้า';
+    btn.disabled=false;
+    alert('บันทึกไม่สำเร็จ: '+e.message);
+  }
+}
+
+// ============================================================
+// GUARD — HOME
+// ============================================================
+function renderGuardHome(){
+  if(!cu) return;
+  var uid=cu.id,wr=wiRead[uid]||{},wd=0;
+  regs.forEach(function(t,i){if(wr[i])wd++;});
+  var sc=quizScores[uid]||{},qd=0,qp=0;
+  regs.forEach(function(t,i){if(sc[i]&&sc[i].length>0){qd++;if(sc[i][sc[i].length-1].pass)qp++;}});
+  var wp=regs.length>0?Math.round(wd/regs.length*100):0;
+  gid('guard-stats-grid').innerHTML='<div class="stat-card"><div class="stat-icon si-blue">📚</div><div><div class="stat-val">'+wd+'/'+regs.length+'</div><div class="stat-lbl">อ่าน WI แล้ว</div></div></div><div class="stat-card"><div class="stat-icon si-green">📝</div><div><div class="stat-val">'+qd+'</div><div class="stat-lbl">ทำแบบทดสอบแล้ว</div></div></div><div class="stat-card"><div class="stat-icon si-orange">✅</div><div><div class="stat-val">'+qp+'</div><div class="stat-lbl">ผ่านการทดสอบ</div></div></div><div class="stat-card"><div class="stat-icon si-purple">📊</div><div><div class="stat-val">'+wp+'%</div><div class="stat-lbl">ความคืบหน้ารวม</div></div></div>';
+  var wpH='';
+  regs.forEach(function(t,i){
+    var done=wr[i],arr=sc[i]||[],qs='';
+    if(arr.length>0){ var l=arr[arr.length-1]; qs='<span class="badge '+(l.pass?'bg':'bo')+'" style="font-size:11px;">'+(l.pass?'ผ่าน '+l.score+'%':'ไม่ผ่าน '+l.score+'%')+'</span>'; }
+    wpH+='<div style="display:flex;align-items:center;gap:10px;margin-bottom:8px;padding:8px 10px;background:#f8faff;border-radius:9px;border:1px solid #e8edf5;cursor:pointer;" onclick="openWI('+i+')"><div style="width:28px;height:28px;border-radius:7px;background:linear-gradient(135deg,#0066cc,#003380);color:#fff;font-weight:800;font-size:11px;display:flex;align-items:center;justify-content:center;flex-shrink:0;">'+t.num+'</div><div style="flex:1;font-size:13px;font-weight:600;color:#334;">'+t.title.substring(0,36)+'</div>'+(done?'<span class="badge bg" style="font-size:11px;">✓</span>':'<span class="badge bgr" style="font-size:11px;">ยังไม่อ่าน</span>')+(qs?' '+qs:'')+'</div>';
+  });
+  gid('guard-wi-progress-list').innerHTML=wpH;
+  var nH='';
+  var myN=notifications.filter(function(n){return !n.read;}).slice(0,3);
+  if(myN.length>0) myN.forEach(function(n){ nH+='<div class="notif-item unread"><div class="notif-icon">🔔</div><div class="notif-body"><div class="notif-title">'+n.title+'</div><div class="notif-msg">'+n.msg+'</div></div></div>'; });
+  else nH='<div style="text-align:center;color:#888;padding:20px;font-size:13px;">ไม่มีการแจ้งเตือน</div>';
+  gid('guard-notif-preview').innerHTML=nH;
+}
+
+// ============================================================
+// GUARD — QUIZ
+// ============================================================
+function renderQuizMenu(){
+  var uid=cu?cu.id:'',sc=quizScores[uid]||{},h='';
+  regs.forEach(function(t,i){
+    var arr=sc[i]||[],att=arr.length,psd=arr.some(function(s){return s.pass;});
+    var ls=arr.length>0?arr[arr.length-1].score+'%':'—';
+    var can=!psd&&att<3;
+    h+='<div class="card" style="margin-bottom:10px;"><div style="display:flex;align-items:center;gap:14px;flex-wrap:wrap;"><div class="wi-num" style="flex-shrink:0;">'+t.num+'</div><div style="flex:1;min-width:200px;"><div style="font-size:15px;font-weight:700;color:#001a4d;">'+t.title+'</div><div style="font-size:12px;color:#667;margin-top:2px;">5 ข้อ | 15 วินาที/ข้อ | สูงสุด 3 ครั้ง</div><div style="margin-top:5px;display:flex;gap:6px;flex-wrap:wrap;"><span class="badge bgr">ทำแล้ว: '+att+'/3</span><span class="badge '+(ls!=='—'?(arr[arr.length-1]&&arr[arr.length-1].pass?'bg':'br'):'bgr')+'">คะแนน: '+ls+'</span>'+(psd?'<span class="badge bg">✅ ผ่านแล้ว</span>':'')+'</div></div><div>'+(psd?'<button class="btn btn-o btn-sm" disabled>ผ่านแล้ว</button>':(can?'<button class="btn btn-p" onclick="startQuiz('+i+')">▶ เริ่มทดสอบ</button>':'<button class="btn btn-o btn-sm" disabled>ครบ 3 ครั้ง</button>'))+'</div></div></div>';
+  });
+  gid('quiz-menu-list').innerHTML=h;
+}
+
+function startQuiz(ti){
+  cqt=ti;
+  var all=qb.filter(function(q){return q.topic===ti;});
+  if(all.length===0){alert('ยังไม่มีคำถาม');return;}
+  cqq=all.slice().sort(function(){return Math.random()-.5;}).slice(0,Math.min(5,all.length));
+  cqi=0; cqa=[];
+  document.querySelectorAll('#page-guard .guard-sub').forEach(function(el){el.style.display='none';});
+  gid('guard-page-quiz-run').style.display='block';
+  showQ();
+}
+
+function showQ(){
+  var q=cqq[cqi];
+  gid('quiz-topic-label').textContent=regs[cqt]?regs[cqt].title.substring(0,36)+'...':'';
+  gid('quiz-q-num-label').textContent='คำถามที่ '+(cqi+1)+' / '+cqq.length;
+  gid('quiz-question-text').textContent=q.q;
+  var pH='';
+  cqq.forEach(function(qq,pi){ var c='qpip'; if(pi<cqi)c+=(cqa[pi]===qq.ans?' ok':' fail'); else if(pi===cqi)c+=' cur'; pH+='<div class="'+c+'"></div>'; });
+  gid('quiz-progress-pips').innerHTML=pH;
+  var oH='';
+  q.opts.forEach(function(opt,oi){ oH+='<button class="quiz-opt" id="quiz-opt-'+oi+'" onclick="selAns('+oi+')">'+opt+'</button>'; });
+  gid('quiz-options-list').innerHTML=oH;
+  gid('quiz-feedback').style.display='none';
+  gid('quiz-next-btn').style.display='none';
+  qsec=15; updT();
+  if(qtimer) clearInterval(qtimer);
+  qtimer=setInterval(function(){ qsec--; updT(); if(qsec<=0){clearInterval(qtimer);autoAns();} },1000);
+}
+
+function updT(){
+  var el=gid('quiz-timer-display'); if(!el)return;
+  el.textContent=qsec; el.className='quiz-timer';
+  if(qsec<=5)el.className='quiz-timer danger';
+  else if(qsec<=8)el.className='quiz-timer warn';
+}
+
+function selAns(oi){
+  if(qtimer) clearInterval(qtimer);
+  var q=cqq[cqi]; cqa[cqi]=oi;
+  var opts=document.querySelectorAll('.quiz-opt');
+  opts.forEach(function(o){o.classList.add('disabled');o.onclick=null;});
+  opts[q.ans].classList.add('correct');
+  if(oi!==q.ans) opts[oi].classList.add('wrong');
+  var fb=gid('quiz-feedback'); fb.style.display='block';
+  fb.className='alert '+(oi===q.ans?'alert-s':'alert-d');
+  fb.innerHTML=oi===q.ans?'✅ ถูกต้อง!':'❌ ไม่ถูกต้อง — คำตอบที่ถูก: <strong>'+q.opts[q.ans]+'</strong>';
+  gid('quiz-next-btn').style.display='inline-flex';
+}
+
+function autoAns(){
+  cqa[cqi]=-1;
+  var q=cqq[cqi];
+  var opts=document.querySelectorAll('.quiz-opt');
+  opts.forEach(function(o){o.classList.add('disabled');o.onclick=null;});
+  opts[q.ans].classList.add('correct');
+  var fb=gid('quiz-feedback'); fb.style.display='block';
+  fb.className='alert alert-w';
+  fb.innerHTML='⏰ หมดเวลา! — คำตอบที่ถูก: <strong>'+q.opts[q.ans]+'</strong>';
+  gid('quiz-next-btn').style.display='inline-flex';
+}
+
+function quizNext(){ cqi++; if(cqi>=cqq.length){showResult();return;} showQ(); }
+
+async function showResult(){
+  if(qtimer) clearInterval(qtimer);
+  var cor=0;
+  cqq.forEach(function(q,i){if(cqa[i]===q.ans)cor++;});
+  var score=Math.round(cor/cqq.length*100),pass=score>=70;
+  var uid=cu.id;
+  if(!quizScores[uid]) quizScores[uid]={};
+  if(!quizScores[uid][cqt]) quizScores[uid][cqt]=[];
+  var att=quizScores[uid][cqt].length+1;
+  var rec={score:score,pass:pass,date:today(),attempt:att};
+  quizScores[uid][cqt].push(rec);
+  // Save to Firestore
+  try {
+    var upd={};
+    upd['quizScores.'+cqt]=quizScores[uid][cqt];
+    await fsUpdate('users',uid,upd);
+    await addNotif('quiz_complete',cu.name+' ทำแบบทดสอบเสร็จ','หัวข้อ: '+(regs[cqt]?regs[cqt].title.substring(0,26)+'...:':'')+' '+score+'% | '+(pass?'ผ่าน':'ไม่ผ่าน'));
+  } catch(e){ console.error('Save quiz score error:',e); }
+  document.querySelectorAll('#page-guard .guard-sub').forEach(function(el){el.style.display='none';});
+  gid('guard-page-quiz-result').style.display='block';
+  gid('quiz-result-icon').textContent=pass?'🎉':'😞';
+  gid('quiz-result-title').textContent=pass?'ผ่านการทดสอบ!':'ไม่ผ่านการทดสอบ';
+  gid('quiz-result-score').textContent=score+'%';
+  gid('quiz-result-score').style.color=pass?'#1a7a40':'#cc0000';
+  gid('quiz-result-msg').textContent='ตอบถูก '+cor+' / '+cqq.length+' ข้อ';
+  gid('quiz-result-attempt').textContent='ครั้งที่ '+att+' / 3';
+  gid('quiz-retry-btn').style.display=(!pass&&att<3)?'inline-flex':'none';
+  var dH='';
+  cqq.forEach(function(q,i){
+    var ua=cqa[i],ok=ua===q.ans;
+    dH+='<div style="margin-bottom:12px;padding:11px;background:'+(ok?'#f0fff4':'#fff0f0')+';border-radius:9px;border:1.5px solid '+(ok?'#aaddbb':'#ffaaaa')+'"><div style="font-size:13px;font-weight:600;margin-bottom:5px;color:#334;">'+(i+1)+'. '+q.q+'</div>'+(ua>=0?'<div style="font-size:12px;">ตอบ: <strong style="color:'+(ok?'#1a7a40':'#cc0000')+';">'+q.opts[ua]+'</strong></div>':'<div style="font-size:12px;color:#cc6600;">⏰ หมดเวลา</div>')+(!ok?'<div style="font-size:12px;color:#1a7a40;margin-top:2px;">เฉลย: <strong>'+q.opts[q.ans]+'</strong></div>':'')+'</div>';
+  });
+  gid('quiz-result-detail').innerHTML=dH;
+}
+
+function retryQuiz(){ startQuiz(cqt); }
+
+function renderGuardScores(){
+  if(!cu) return;
+  var uid=cu.id,sc=quizScores[uid]||{},h='';
+  regs.forEach(function(t,i){ if(sc[i]&&sc[i].length>0) sc[i].forEach(function(s){ h+='<div class="score-row"><div class="score-num '+(s.pass?'pass':'fail')+'">'+s.score+'%</div><div class="score-info"><div class="score-title">'+t.num+'. '+t.title.substring(0,38)+'</div><div class="score-date">ครั้งที่ '+s.attempt+' | '+fmt(s.date)+'</div></div><span class="badge '+(s.pass?'bg':'br')+'">'+(s.pass?'ผ่าน':'ไม่ผ่าน')+'</span></div>'; }); });
+  gid('guard-scores-list').innerHTML=h||'<div class="empty-state"><div class="empty-icon">🏆</div><p>ยังไม่มีผล</p></div>';
+}
+
+function renderGuardCo(){
+  gid('guard-cp-logo').textContent=companyData.logo||'WD';
+  gid('guard-cp-name').textContent=companyData.name||'Western Digital';
+  gid('guard-cp-dept').textContent=companyData.dept||'Security Department';
+  gid('guard-cp-addr').textContent=companyData.addr||'';
+  gid('guard-wi-total-count').textContent=regs.length;
+}
+
+// ============================================================
+// EXPORT EXCEL
+// ============================================================
+function exportExcel(){
+  if(typeof XLSX==='undefined'){alert('กำลังโหลด SheetJS');return;}
+  var wb=XLSX.utils.book_new();
+  var h1=['รหัสพนักงาน','ชื่อ-นามสกุล','ตำแหน่ง','สิทธิ์','อ่านแล้ว','ทั้งหมด','%'];
+  regs.forEach(function(t){h1.push('WI '+t.num);});
+  var ws1d=[h1];
+  allUsers.forEach(function(u){
+    var wr=wiRead[u.id]||{},cnt=0,det=[];
+    regs.forEach(function(t,i){if(wr[i])cnt++;det.push(wr[i]?'อ่านแล้ว':'ยังไม่อ่าน');});
+    var pct=regs.length>0?Math.round(cnt/regs.length*100):0;
+    ws1d.push([u.id,u.name,u.position,u.enabled?'เปิด':'ปิด',cnt,regs.length,pct+'%'].concat(det));
+  });
+  var ws1=XLSX.utils.aoa_to_sheet(ws1d);
+  XLSX.utils.book_append_sheet(wb,ws1,'ความคืบหน้า WI');
+  var ws2d=[['รหัสพนักงาน','ชื่อ-นามสกุล','หัวข้อ WI','คะแนน','ผล','ครั้งที่','วันที่']];
+  allUsers.forEach(function(u){
+    var sc=quizScores[u.id]||{};
+    regs.forEach(function(t,i){ if(sc[i]) sc[i].forEach(function(s){ ws2d.push([u.id,u.name,t.num+'. '+t.title.substring(0,28),s.score,s.pass?'ผ่าน':'ไม่ผ่าน',s.attempt,fmt(s.date)]); }); });
+  });
+  var ws2=XLSX.utils.aoa_to_sheet(ws2d);
+  XLSX.utils.book_append_sheet(wb,ws2,'คะแนนแบบทดสอบ');
+  XLSX.writeFile(wb,'WD_Training_'+new Date().toISOString().slice(0,10)+'.xlsx');
+}
+
+// ============================================================
+// PRINT REPORT
+// ============================================================
+function openPrintReportModal(){
+  gid('pr-company-name').textContent=companyData.name||'';
+  gid('pr-company-dept').textContent=(companyData.dept||'')+' | WI-SSC-001';
+  gid('pr-print-date').textContent=new Date().toLocaleDateString('th-TH',{weekday:'long',year:'numeric',month:'long',day:'numeric'});
+  var wiH='',twi=0,twp=allUsers.length*regs.length;
+  allUsers.forEach(function(u,idx){
+    var wr=wiRead[u.id]||{},cnt=0;
+    regs.forEach(function(t,i){if(wr[i]){cnt++;twi++;}});
+    var pct=regs.length>0?Math.round(cnt/regs.length*100):0;
+    var pc=pct===100?'#1a7a40':pct>=50?'#cc6600':'#cc0000';
+    wiH+='<tr><td style="text-align:center;color:#888;">'+(idx+1)+'</td><td><span class="badge bb">'+u.id+'</span></td><td><strong>'+u.name+'</strong></td><td style="color:#667;font-size:12px;">'+u.position+'</td><td style="text-align:center;font-weight:800;color:#0066cc;">'+cnt+'</td><td style="text-align:center;color:#888;">'+regs.length+'</td><td style="text-align:center;"><span style="font-weight:800;color:'+pc+';">'+pct+'%</span></td></tr>';
+  });
+  gid('pr-wi-tbody').innerHTML=wiH||'<tr><td colspan="7" style="text-align:center;color:#aaa;padding:16px;">ยังไม่มีข้อมูล</td></tr>';
+  var scH='',rn=0;
+  allUsers.forEach(function(u){
+    var sc=quizScores[u.id]||{};
+    regs.forEach(function(t,i){ if(sc[i]&&sc[i].length>0) sc[i].forEach(function(s){ rn++; scH+='<tr><td style="text-align:center;color:#888;">'+rn+'</td><td><span class="badge bb">'+u.id+'</span></td><td><strong>'+u.name+'</strong></td><td style="font-size:13px;">'+t.num+'. '+t.title.substring(0,26)+'</td><td style="text-align:center;font-weight:800;color:'+(s.pass?'#1a7a40':'#cc0000')+';">'+s.score+'%</td><td style="text-align:center;"><span class="badge '+(s.pass?'bg':'br')+'">'+(s.pass?'ผ่าน':'ไม่ผ่าน')+'</span></td><td style="text-align:center;color:#888;">'+s.attempt+'</td><td style="font-size:12px;color:#667;">'+fmt(s.date)+'</td></tr>'; }); });
+  });
+  gid('pr-score-tbody').innerHTML=scH||'<tr><td colspan="8" style="text-align:center;color:#aaa;padding:16px;">ยังไม่มีผล</td></tr>';
+  gid('modal-print-report').classList.add('open');
+}
+
+// ============================================================
+// CLOSE MODALS ON BACKDROP CLICK
+// ============================================================
+document.querySelectorAll('.modal-overlay').forEach(function(el){
+  el.addEventListener('click',function(e){ if(e.target===el) el.classList.remove('open'); });
+});
+
+// ============================================================
+// BOOT
+// ============================================================
+window.addEventListener('DOMContentLoaded', function(){
+  // Hide all pages initially
+  document.querySelectorAll('.page').forEach(function(p){ p.style.display='none'; });
+  initFirebase();
+});
+</script>
+</body>
+</html>
